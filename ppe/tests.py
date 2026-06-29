@@ -606,31 +606,6 @@ class AdminLoginViewTest(TestCase):
         self.client = Client()
         self.user = User.objects.create_superuser("admin", "admin@test.com", "password")
 
-    def test_get_login_page_returns_200(self):
-        response = self.client.get(reverse("ppe:admin_login"))
-        self.assertEqual(response.status_code, 200)
-
-    def test_authenticated_user_redirected_to_index(self):
-        self.client.login(username="admin", password="password")
-        response = self.client.get(reverse("ppe:admin_login"))
-        self.assertRedirects(response, reverse("ppe:index"))
-
-    def test_valid_credentials_redirects_to_index(self):
-        response = self.client.post(reverse("ppe:admin_login"), {
-            "username": "admin",
-            "password": "password",
-        })
-        self.assertRedirects(response, reverse("ppe:index"))
-
-    def test_invalid_credentials_returns_error(self):
-        response = self.client.post(reverse("ppe:admin_login"), {
-            "username": "admin",
-            "password": "wrong",
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("error_message", response.context)
-
-
 class AdminLogoutViewTest(TestCase):
 
     def setUp(self):

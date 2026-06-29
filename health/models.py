@@ -187,6 +187,7 @@ class St23HealthSite(models.Model):
     site_name = models.CharField(_("site_name"), max_length=120)
     public_link = models.URLField(_("public_link"), blank=True, max_length=255)
     address = models.CharField(_("address"), max_length=255)
+    appointment_link = models.CharField(_("appointment_link"), blank=True, null=True, max_length=2000)
 
     class Meta:
         db_table = 'sante\".\"st23_health_site'

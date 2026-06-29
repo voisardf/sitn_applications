@@ -19,7 +19,6 @@ urlpatterns = [
     path("overview", views.overview, name="overview"),
     path("load_zipfile", views.load_zipfile, name="load_zipfile"),
     path("submit_for_validation", views.submit_for_validation, name="submit_for_validation"),
-    path("admin_login", views.admin_login, name="admin_login"),
     path("admin_logout", views.admin_logout, name="admin_logout"),
     path("zip_status", views.zip_status, name="zip_status"),
     path("get_final_documents", views.get_final_documents, name="get_final_documents"),

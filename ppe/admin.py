@@ -29,6 +29,7 @@ class DossierPPEAdmin(WMTSGISModelAdmin):
         'contact_principal',
         'type_dossier',
         'ref_dossier_initial',
+        'statut',
         'latest_zipfile_statut',
         'date_creation',
         'aff_infolica'

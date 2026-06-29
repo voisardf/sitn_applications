@@ -35,6 +35,7 @@ Application de gestion des PPE
                         <th>No. bien-fonds</th>
                         <th>Date création</th>
                         <th>Type dossier</th>
+                        <th>Statut dossier</th>
                         <th>Statut dernier zip</th>
                         <th>Code</th>
                     </tr>
@@ -51,6 +52,7 @@ Application de gestion des PPE
                             (Réf. initiale: <a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.ref_dossier_initial }}" target="_new">{{ dossierppe.ref_dossier_initial }}</a>)
                             {% endif %}
                         </td>
+                        <td>{{ dossierppe.get_statut_display }}</td>
                         <td>{{ dossierppe.zipfiles.first.get_file_statut_display }}</td>
                         <td><a href="{% url 'ppe:overview' %}">{{ dossierppe.login_code }}</a></td>
                     </tr>

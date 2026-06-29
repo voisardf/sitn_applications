@@ -43,27 +43,6 @@ def index(request):
     return HttpResponse(template.render({"latest_dossiers_list": latest_dossiers_list}, request))
 
 
-def admin_login(request):
-    if request.user.is_authenticated:
-        return redirect('ppe:index')
-
-    if request.method == 'POST':
-        form = AdminLoginForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            auth_login(request, user)
-            return redirect('ppe:index')
-        else:
-            return render(request, 'ppe/admin_login.html', {
-                'form': form,
-                'error_message': "Identifiants incorrects"
-            })
-    else:
-        form = AdminLoginForm()
-
-    return render(request, 'ppe/admin_login.html', {'form': form})
-
-
 def admin_logout(request):
     auth_logout(request)
     return redirect('ppe:index')

@@ -6,7 +6,7 @@ body {
   background: white;
 }
 
-  /* Bandeau prototype */
+  /* Bandeau prototype 
   body:after {
     content: "Prototype";
     position: fixed;
@@ -23,7 +23,7 @@ body {
     color: #fff;
     line-height: 41px;
     transform:rotate(45deg);
-  }
+  } */
 
 /* DEBUG STYLES */
 /*div {

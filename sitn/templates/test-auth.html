@@ -57,7 +57,7 @@
 
   {% else %}
   <h3>Vous n'êtes pas connecté</h3>
-  <form action="{% provider_login_url 'dotnetid' process='login' %}" method="POST">
+  <form action="{% provider_login_url 'dotnetid' process='login' next=request.path %}" method="POST">
     {% csrf_token %}
     <button type="submit" href="{% provider_login_url 'dotnetid' %}">
       Me connecter

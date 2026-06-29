@@ -170,7 +170,7 @@ class Zipfile(models.Model):
         CAE = "CAE", "Contrôle automatique : erreurs à corriger"
         ERR = "ERR", "Contrôle automatique : erreur interne"
         CAV = "CAV", "Contrôle automatique : validé"
-        CMS = "CMS", "Contrôle manuel : en cours "
+        CMS = "CMS", "Contrôle manuel : en cours (CMS)"
         CMC = "CMC", "Contrôle manuel : en cours"
         CME = "CME", "Contrôle manuel : erreurs à corriger"
         CMV = "CMV", "Contrôle manuel : validé"
