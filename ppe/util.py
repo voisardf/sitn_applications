@@ -153,3 +153,10 @@ def check_geoshop_ref(ref, doc):
         return True, None
     else:
         return False, 'La date de commande de la référence semble erronée.'
+
+def check_alerts(dossier_ref):
+
+    # Alert 1: There is a abandoned dossier with the same cadastre, property and type
+    dossier_list = DossierPPE.objects.get(cadastre=dossier_ref.cadastre)
+
+    return

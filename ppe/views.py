@@ -13,7 +13,7 @@ from django.core.mail import EmailMultiAlternatives
 # INDIVIDUAL ELEMENTS
 from .models import DossierPPE, ContactPrincipal, Notaire, Signataire, AdresseFacturation, Zipfile
 from .forms import AdminLoginForm, AdresseFacturationForm, NotaireForm, SignataireForm, GeolocalisationForm, ContactPrincipalForm, ZipfileForm
-from .util import get_localisation, login_required, check_geoshop_ref
+from .util import get_localisation, login_required, check_geoshop_ref, check_alerts
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +248,7 @@ def contact_principal(request):
     accord_actuel.file.name = new_accord_facturation_path
     accord_actuel.save(update_fields=["file"])
 
+    check_alerts(new_dossier_ppe)
     request.session['login_code'] = login_code
     return redirect('ppe:define_ppe_type')
 
