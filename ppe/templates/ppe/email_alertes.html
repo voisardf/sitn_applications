@@ -1,0 +1,111 @@
+{% autoescape off %}
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width" />
+  <style>
+    body {
+      width: 100% !important;
+      min-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    table {
+      width: 100% !important;
+      border-spacing: 0;
+      border-collapse: collapse;
+    }
+
+
+    td {
+      padding: 0;
+      text-align: left;
+      word-break: break-word;
+      -webkit-hyphens: auto;
+      -moz-hyphens: auto;
+      hyphens: auto;
+      border-collapse: collapse !important;
+    }
+
+    table,
+    td {
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+
+    body,
+    table,
+    td,
+    p,
+    a,
+    li,
+    blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+
+    body {
+      color: #212121;
+      font-family: "Helvetica Neue", Helvetica, Arial, Verdana, "Trebuchet MS";
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.429;
+      letter-spacing: 0.001em;
+      background-color: #FFF;
+    }
+
+    .header {
+      background: #26a59a;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    td {
+      padding: 25px;
+    }
+
+    .footer {
+      font-size: 12px;
+      background: #eee;
+    }
+
+    .footer td {
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+    <p>{{ alert_nb }}</p>
+      <h4>Données de base:</h4>
+        <p>Cadastre : {{ doc.cadastre}}<br>
+            Bien-fonds : {{ doc.nummai }}<br>
+            Type de dossier : {{ doc.get_type_dossier_display }}</p>
+        <h4>Dossier initial</h4>
+          <ul>
+            <li>ID dossier: {{ doc.id }}</li>
+            <li>Date création: {{ doc.date_creation }}</li>
+            <li>Contact principal: {{ doc.contact_principal.nom }} {{ doc.contact_principal.prenom }}</li>
+            <li>Statut: {{ doc.statut }}</li>
+            <li>Type: {{ doc.type_dossier }}</li>
+            <li>Statut dernier ZIP: {{ doc.zipfiles.id }}</li>
+        </ul>
+
+        <p>La liste des doublons:</p>
+          {% for dossier in dossier_list %}
+          <ul>
+            <li>ID dossier: {{ dossier.id }}</li>
+            <li>Date création: {{ dossier.date_creation }}</li>
+            <li>Contact principal: {{ dossier.contact_principal.nom }} {{ dossier.contact_principal.prenom }}</li>
+            <li>Statut: {{ dossier.statut }}</li>
+            <li>Type: {{ dossier.type_dossier }}</li>
+            <li>Statut dernier ZIP: {{ dossier.zipfiles.id }}</li>
+        </ul>
+        {% endfor %}>
+</body>
+
+</html>
+{% endautoescape %}

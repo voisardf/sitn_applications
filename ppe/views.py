@@ -12,7 +12,7 @@ from django.core.mail import EmailMultiAlternatives
 
 # INDIVIDUAL ELEMENTS
 from .models import DossierPPE, ContactPrincipal, Notaire, Signataire, AdresseFacturation, Zipfile
-from .forms import AdminLoginForm, AdresseFacturationForm, NotaireForm, SignataireForm, GeolocalisationForm, ContactPrincipalForm, ZipfileForm
+from .forms import AdresseFacturationForm, NotaireForm, SignataireForm, GeolocalisationForm, ContactPrincipalForm, ZipfileForm
 from .util import get_localisation, login_required, check_geoshop_ref, check_alerts
 
 logger = logging.getLogger(__name__)
@@ -248,7 +248,6 @@ def contact_principal(request):
     accord_actuel.file.name = new_accord_facturation_path
     accord_actuel.save(update_fields=["file"])
 
-    check_alerts(new_dossier_ppe)
     request.session['login_code'] = login_code
     return redirect('ppe:define_ppe_type')
 
@@ -364,6 +363,7 @@ def define_ppe_type(request, doc, type_dossier=None):
         dossier_ppe.revision_jouissances = None
         dossier_ppe.ref_geoshop = ref_geoshop
         dossier_ppe.save()
+        check_alerts(dossier_ppe)
         return redirect('ppe:overview')
 
     elif type_dossier == 'M' and code_initial is not None:
@@ -379,6 +379,7 @@ def define_ppe_type(request, doc, type_dossier=None):
             dossier_ppe.type_dossier = type_dossier
             dossier_ppe.ref_dossier_initial = dossier_ppe_initial.id
             dossier_ppe.save()
+            check_alerts(dossier_ppe)
             return redirect("ppe:overview")
         else:
             error_message = "Le numéro de bien-fonds n'est pas le même que dans le dossier d'origine."    
@@ -391,6 +392,7 @@ def define_ppe_type(request, doc, type_dossier=None):
         if ref_exists == True:
             dossier_ppe.ref_geoshop = ref_geoshop
             dossier_ppe.save()
+            check_alerts(dossier_ppe)
             return redirect("ppe:overview")
         else:
             error_message = "La définition du type de dossier a échouée. {}".format(ref_error)

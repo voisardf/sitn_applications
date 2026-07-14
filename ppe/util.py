@@ -3,8 +3,11 @@ from functools import wraps
 
 from .forms import GeolocalisationForm
 from .models import DossierPPE, GeoshopCadastreOrder
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest, Http404
+from django.core.mail import EmailMultiAlternatives
+from django.template import loader
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +159,38 @@ def check_geoshop_ref(ref, doc):
 
 def check_alerts(dossier_ref):
 
-    # Alert 1: There is a abandoned dossier with the same cadastre, property and type
-    dossier_list = DossierPPE.objects.get(cadastre=dossier_ref.cadastre)
-
+    # Alert 1: There is a abandoned dossier with the same cadastre, property and type=C
+    dossier_list = DossierPPE.objects.all().filter(cadastre=dossier_ref.cadastre).filter(nummai=dossier_ref.nummai)
+    if dossier_list.filter(type_dossier="C").exclude(statut="A"):
+        mail_alert("Alerte 1", dossier_list, dossier_ref)
+    # Alert 2: There is a abandoned dossier with the same cadastre, property and type=R
+    if dossier_list.filter(type_dossier="R").exclude(statut="A"):
+        mail_alert("Alerte 2", dossier_list, dossier_ref)
+    if dossier_list.filter(type_dossier="M").exclude(statut="A"):
+        mail_alert("Alerte 3", dossier_list, dossier_ref)
     return
+
+def mail_alert(alert_nb, dossier_list, doc):
+
+    # Set the mail subject
+    mail_subject = "Dossiers PPE : Alerte doublon"
+    default_sender = settings.DEFAULT_FROM_EMAIL if settings.DEFAULT_FROM_EMAIL else 'no-reply-ppe@ne.ch'
+
+    # First, render the plain text content.
+    text_content = f"Alerte à Malibu {alert_nb} : Un nouveau dossier PPE a été créer à un endroit où un autre est en cours.\n \
+        Cadastre {doc.cadastre} \nBien-fonds : {doc.nummai} \n \
+        Type de dossier : {doc.get_type_dossier_display}\n \
+        Dossier(s) existant(s): {dossier_list}"
+
+    # Secondly, render the HTML content.
+    html_content = loader.render_to_string("ppe/email_alertes.html", context={"doc": doc, "alert_nb": alert_nb, "dossier_list": dossier_list})
+    
+    # Then, create a multipart email instance.
+    msg = EmailMultiAlternatives(
+        mail_subject,
+        text_content,
+        default_sender,
+        ["francois.voisard@ne.ch"],    )
+    # Lastly, attach the HTML content to the email instance and send.
+    msg.attach_alternative(html_content, "text/html")
+    msg.send()
