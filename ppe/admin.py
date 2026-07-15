@@ -117,9 +117,41 @@ class NotaireAdmin(admin.ModelAdmin):
         'localite'
     ]
 
-admin.site.register(AdresseFacturation)
+class AdresseFacturationAdmin(admin.ModelAdmin):
+    search_fields= [
+         'nom_raison_sociale',
+         'prenom',
+         'complement'
+    ]
+    list_display = [
+        'nom_raison_sociale',
+        'prenom',
+        'complement',
+        'rue',
+        'no_rue',
+        'npa',
+        'localite'
+    ]
+
+class SignataireAdmin(admin.ModelAdmin):
+    search_fields= [
+         'nom',
+         'prenom',
+         'complement'
+    ]
+    list_display = [
+        'nom',
+        'prenom',
+        'complement',
+        'rue',
+        'no_rue',
+        'npa',
+        'localite'
+    ]
+
+admin.site.register(AdresseFacturation, AdresseFacturationAdmin)
 admin.site.register(ContactPrincipal, ContactPrincipalAdmin)
 admin.site.register(DossierPPE, DossierPPEAdmin)
 admin.site.register(Notaire, NotaireAdmin)
-admin.site.register(Signataire)
+admin.site.register(Signataire, SignataireAdmin)
 admin.site.register(Zipfile, ZipfileAdmin)
