@@ -1,5 +1,5 @@
 import os
-import datetime, random, string, json, logging, ast
+import datetime, random, string, json, logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, FileResponse, Http404, HttpResponseForbidden
 from django.template import loader
@@ -181,14 +181,14 @@ def contact_principal(request):
             localisation_ppe = get_localisation(request, localisation)
             localisation_ppe['nummai'] = nummai
             return render(
-                request, 
-                "ppe/contact_principal.html", 
+                request,
+                "ppe/contact_principal.html",
                 {
                     "contact_form": ContactPrincipalForm(prefix='contact'),
                     "notaire_form": NotaireForm(prefix='notaire'),
                     "signataire_form": SignataireForm(prefix='signataire'),
                     "facturation_form": AdresseFacturationForm(prefix='facturation'),
-                    "localisation_ppe": localisation_ppe
+                    "localisation_ppe": json.dumps(localisation_ppe),
                 }
             )
         else:
@@ -211,7 +211,10 @@ def contact_principal(request):
     if not facturation_form.is_valid():
         raise BadRequest(facturation_form.errors)
 
-    geolocalisation_ppe = ast.literal_eval(request.POST["localisation_ppe"])
+    geolocalisation_ppe = json.loads(request.POST["localisation_ppe"])
+    if (round(geolocalisation_ppe["coordinates"][0], 1) != geolocalisation_ppe["coord_est"]
+            or round(geolocalisation_ppe["coordinates"][1], 1) != geolocalisation_ppe["coord_nord"]):
+        raise BadRequest("Localisation incohérente, merci de recommencer.")
 
     login_code = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits + '._-') for _ in range(16))
 

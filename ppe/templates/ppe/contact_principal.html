@@ -14,7 +14,7 @@ Dépôt d'un dossier - étape 2:
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
-        <input type="hidden" value="{{ localisation_ppe }}" name="localisation_ppe">
+        <input type="hidden" value="{{ localisation_ppe_json }}" name="localisation_ppe">
         <div class="row">
             <div class="col">
                 <fieldset class="form-group">
