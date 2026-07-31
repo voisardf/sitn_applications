@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.gis.db.models.functions import Distance, Transform
 from django.contrib.gis.geos import Point
+from django.db.models.functions import ExtractYear
 from django.http import HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -8,7 +9,7 @@ from django.urls import reverse
 from . import stac
 from .models import PanoramaItem, Sequence
 
-ROADVIEW_MAX_DISTANCE_M = 100
+ROADVIEW_MAX_DISTANCE_M = 20
 
 
 def _json(data):
@@ -63,7 +64,7 @@ def panorama_view(request, item_id):
 
 def panoview_base_view(request):
     """
-    Redirects to the closest picture to the given coordinates, provided it's
+    Redirects to the most recent and closest picture to the given coordinates, provided it's
     within ROADVIEW_MAX_DISTANCE_M meters.
     """
     try:
@@ -75,14 +76,29 @@ def panoview_base_view(request):
         return HttpResponseBadRequest('Parameters "east" and "north" are not numbers')
 
     point = Point(east, north, srid=settings.DEFAULT_SRID)
-    closest = (
+
+    years = (
         PanoramaItem.objects
-        .annotate(distance=Distance("geom", point))
-        .order_by("-captured_at", "distance")
-        .first()
+        .annotate(captured_year=ExtractYear("captured_at"))
+        .order_by("-captured_year")
+        .values_list("captured_year", flat=True)
+        .distinct()
     )
 
-    if closest is None or closest.distance.m > ROADVIEW_MAX_DISTANCE_M:
+    closest = None
+    for year in years:
+        candidate = (
+            PanoramaItem.objects
+            .filter(captured_at__year=year)
+            .annotate(distance=Distance("geom", point))
+            .order_by("distance")
+            .first()
+        )
+        if candidate is not None and candidate.distance.m <= ROADVIEW_MAX_DISTANCE_M:
+            closest = candidate
+            break
+
+    if closest is None:
         return render(request, "panoview/panorama_not_found.html", {"max_distance": ROADVIEW_MAX_DISTANCE_M})
 
     redirect_url = reverse("panoview-panorama", kwargs={"item_id": closest.id})
