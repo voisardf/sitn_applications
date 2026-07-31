@@ -4,7 +4,7 @@ from . import views
 
 app_name = "ppe"
 urlpatterns = [
-    path("", views.index, name="index"),
+    path("", views.IndexView.as_view(), name="index"),
     path("login", views.login, name="login"),
     path("login/<str:login_code>/", views.login, name="login_direct"),
     path("detail", views.detail, name="detail"),

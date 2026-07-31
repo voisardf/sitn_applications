@@ -161,6 +161,10 @@ Dépôt d'un dossier - Récapitulatif
             </tr>
                 {% endif %}
             </table>
+            {% if dossier_ppe.type_dossier == 'I' %}
+            <br>
+            <p class="alert alert-danger">Le type de dossier semble ne pas encore être défini.</p>
+            {% endif %}
             </section>
             {% endif %}
 
@@ -209,10 +213,12 @@ Dépôt d'un dossier - Récapitulatif
             {% empty %}
         </div>
             <div class="row m-0">
+                {% if dossier_ppe.type_dossier in 'C,R,M' %}
                 <form id="overview_form" class="form-horizontal" action="soumission" method="post">
                     {% csrf_token %}
                     <input type="submit" value="Continuer" class="valider btn btn-success">
                 </form>
+                {% endif %}
             {% endfor %}
     </div>
 

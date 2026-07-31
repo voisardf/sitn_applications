@@ -5,7 +5,7 @@ Application de gestion des PPE
 {% endblock titre %}
 
 {% block content %}
-      
+
         <h3>Bienvenue sur l’application de contrôle des dossiers PPE par le SGRF</h3>
 
         <p><br></p>
@@ -14,7 +14,7 @@ Application de gestion des PPE
         <div>
                 <a href="{% url 'ppe:geolocalisation' %}" class="button-lg btn btn-success">Nouvelle soumission</a>
                 <i id="info2" class="bi bi-info-circle-fill" style="color: cornflowerblue;"></i>
-                <div id="info_soumission">Soumettre un dossier de constitution,<br> de modification 
+                <div id="info_soumission">Soumettre un dossier de constitution,<br> de modification
                     ou de révision de PPE<br> pour la première fois.</div>
 
                 <a href="{% url 'ppe:overview' %}" class="button-lg btn btn-success">Modifier une soumission</a>
@@ -22,34 +22,47 @@ Application de gestion des PPE
                 <div id="info_modification">Modifier les informations<br> d'un dossier déjà soumis.</div>
         </div>
         {% if user.is_authenticated %}
-            {% if latest_dossiers_list %}
-            <div id="admin_list">
-                <br>
+        <div id="admin_list">
+            <br>
 
-                <table width="100%" class="table table-striped caption-top tbl-font-size-sm">
-                    <caption>Admin: Liste des dossiers PPE en cours</caption>
+            <form method="get">
+                <table width="100%" class="table table-striped caption-top tbl-font-size-sm align-middle">
+                    <caption>Admin: Liste des dossiers PPE</caption>
                     <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Cadastre</th>
-                        <th>Bien-fonds</th>
-                        <th>Date création</th>
-                        <th>Type dossier</th>
-                        <th>Statut dossier</th>
-                        <th>Contact principal</th>
-                        <th>Date dernier zip</th>
-                        <th>Statut dernier zip</th>
-                        <th>Infolica</th>
-                        <th>Code</th>
+                        {% for col in columns %}
+                        <th>
+                            <a href="{% querystring ordering=col.next_ordering %}" class="text-reset text-decoration-none">
+                                {{ col.label }}
+                                {% if col.direction == "asc" %}<i class="bi bi-caret-up-fill"></i>
+                                {% elif col.direction == "desc" %}<i class="bi bi-caret-down-fill"></i>
+                                {% else %}<i class="bi bi-caret-down" style="opacity: 0.25;"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    <tr class="dossier-filters">
+                        <td></td>
+                        <td>{{ filter.form.cadastre }}</td>
+                        <td>{{ filter.form.nummai }}</td>
+                        <td></td>
+                        <td>{{ filter.form.type_dossier }}</td>
+                        <td>{{ filter.form.statut }}</td>
+                        <td>{{ filter.form.contact_principal__nom }}</td>
+                        <td></td>
+                        <td>{{ filter.form.dernier_zip_statut }}</td>
+                        <td></td>
+                        <td>{{ filter.form.login_code }}</td>
                     </tr>
                     </thead>
                     <tbody>
-                {% for dossierppe in latest_dossiers_list %}
+                {% for dossierppe in dossiers_list %}
                     <tr>
                         <td><a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.id }}" target="_admin">{{ dossierppe.id }}</a></td>
                         <td>{{ dossierppe.cadastre }}</td>
                         <td>{{ dossierppe.nummai }}</td>
-                        <td>{{ dossierppe.date_creation }}</td>
+                        <td>{{ dossierppe.date_creation|date:"d.m.Y H:i" }}</td>
                         <td>{{ dossierppe.get_type_dossier_display }}
                             {% if dossierppe.get_type_dossier_display == 'Modification' %}
                             (Réf. initiale: <a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.ref_dossier_initial }}" target="_admin">{{ dossierppe.ref_dossier_initial }}</a>)
@@ -57,18 +70,58 @@ Application de gestion des PPE
                         </td>
                         <td>{{ dossierppe.get_statut_display }}</td>
                         <td>{{ dossierppe.contact_principal.nom}} {{ dossierppe.contact_principal.prenom }}</td>
-                        <td>{{ dossierppe.zipfiles.first.upload_date }}</td>
+                        <td>{{ dossierppe.zipfiles.first.upload_date|date:"d.m.Y H:i" }}</td>
                         <td>{{ dossierppe.zipfiles.first.get_file_statut_display }}</td>
                         <td>{{ dossierppe.aff_infolica }}</td>
                         <td><a href="{% url 'ppe:login_direct' dossierppe.login_code %}">{{ dossierppe.login_code }}</a></td>
                     </tr>
                 {% empty %}
-                    <p>Aucun dossier n'a été trouvé.</p>
+                    <tr><td colspan="11">Aucun dossier n'a été trouvé.</td></tr>
                 {% endfor %}
                     </tbody>
                 </table>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Filtrer</button>
+                        <a href="{% url 'ppe:index' %}" class="btn btn-sm btn-outline-secondary">Réinitialiser</a>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="id_per_page" class="mb-0">Résultats par page :</label>
+                        <select name="per_page" id="id_per_page" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                            {% for size in page_sizes %}
+                            <option value="{{ size }}" {% if size == current_page_size %}selected{% endif %}>{{ size }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+
+            {% if is_paginated %}
+            <nav aria-label="Pagination des dossiers PPE">
+                <ul class="pagination pagination-sm justify-content-center mt-2">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="{% querystring page=1 %}">«</a></li>
+                    <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}">‹</a></li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">«</span></li>
+                    <li class="page-item disabled"><span class="page-link">‹</span></li>
+                    {% endif %}
+
+                    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}">›</a></li>
+                    <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}">»</a></li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">›</span></li>
+                    <li class="page-item disabled"><span class="page-link">»</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
-        {% endif %}
         </div>
+        {% endif %}
 
 {% endblock content %}

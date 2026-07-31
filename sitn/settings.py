@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "django_extended_ol",
     'registre_foncier',
+    'django_filters',
     'rest_framework',
     'rest_framework_gis',
     'drf_spectacular',

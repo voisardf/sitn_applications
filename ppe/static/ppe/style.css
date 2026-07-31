@@ -110,6 +110,7 @@ caption {
   caption-side: top;
   padding-bottom: 10px;
   font-weight: bold;
+  font-size: 1.5rem;
 }
 
 /* CLASSES ONLY STYLES */
@@ -227,6 +228,22 @@ input:-webkit-autofill {
 
 .tbl-font-size-sm {
   font-size: 0.9rem;
+}
+
+#admin_list th {
+  white-space: nowrap;
+}
+
+#admin_list .dossier-filters td {
+  padding-top: 0.15rem;
+  padding-bottom: 0.2rem;
+}
+
+#admin_list .dossier-filters input,
+#admin_list .dossier-filters select {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.1rem;
+  min-width: 0;
 }
 
 .toggle-btn {

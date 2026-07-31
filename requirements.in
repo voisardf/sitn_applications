@@ -4,6 +4,7 @@ django-cors-headers
 django-dotnetid
 django-extended-ol
 django-fast-update
+django-filter
 django-geojson
 django-revproxy
 djangorestframework==3.16.1
