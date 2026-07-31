@@ -9,10 +9,13 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, BadRequest
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import OuterRef, Subquery
+from django_filters.views import FilterView
 
 # INDIVIDUAL ELEMENTS
 from .models import DossierPPE, ContactPrincipal, Notaire, Signataire, AdresseFacturation, Zipfile
 from .forms import AdresseFacturationForm, NotaireForm, SignataireForm, GeolocalisationForm, ContactPrincipalForm, ZipfileForm
+from .filters import DossierPPEFilter
 from .util import get_localisation, login_required, check_geoshop_ref, check_alerts
 
 logger = logging.getLogger(__name__)
@@ -30,17 +33,80 @@ ZIP_STATUS_LABELS = {
     "DPV": "Dossier papier validé",
 }
 
-def index(request):
-    # A list for the PPE admins to see the latest demands
-    request.session['login_code'] = None
+class IndexView(FilterView):
+    # Page d'accueil : formulaire de dépôt/reprise + liste filtrable et paginée
+    # des dossiers PPE, réservée aux admins connectés (cf. ppe/filters.py).
+    filterset_class = DossierPPEFilter
+    template_name = "ppe/index.html"
+    context_object_name = "dossiers_list"
 
-    if request.user.is_authenticated:
-        latest_dossiers_list = DossierPPE.objects.order_by("-date_creation")[:15]
-    else:
-        latest_dossiers_list = None
+    PAGE_SIZES = [10, 15, 25, 50, 100]
+    DEFAULT_PAGE_SIZE = 15
 
-    template = loader.get_template("ppe/index.html")
-    return HttpResponse(template.render({"latest_dossiers_list": latest_dossiers_list}, request))
+    SORTABLE_COLUMNS = [
+        ("id", "ID"),
+        ("cadastre", "Cadastre"),
+        ("nummai", "Bien-fonds"),
+        ("date_creation", "Date création"),
+        ("type_dossier", "Type dossier"),
+        ("statut", "Statut dossier"),
+        ("contact_principal__nom", "Contact principal"),
+        ("dernier_zip_date", "Date dernier zip"),
+        ("dernier_zip_statut", "Statut dernier zip"),
+        ("aff_infolica", "Infolica"),
+        ("login_code", "Code"),
+    ]
+
+    def get(self, request, *args, **kwargs):
+        request.session['login_code'] = None
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return DossierPPE.objects.none()
+
+        dernier_zip = Zipfile.objects.filter(
+            dossier_ppe=OuterRef("pk")
+        ).order_by("-upload_date")
+
+        return (
+            DossierPPE.objects.select_related("contact_principal")
+            .prefetch_related("zipfiles")
+            .annotate(
+                dernier_zip_statut=Subquery(dernier_zip.values("file_statut")[:1]),
+                dernier_zip_date=Subquery(dernier_zip.values("upload_date")[:1]),
+            )
+            .order_by("-date_creation")
+        )
+
+    def get_paginate_by(self, queryset):
+        try:
+            per_page = int(self.request.GET.get("per_page", self.DEFAULT_PAGE_SIZE))
+        except (TypeError, ValueError):
+            return self.DEFAULT_PAGE_SIZE
+        return per_page if per_page in self.PAGE_SIZES else self.DEFAULT_PAGE_SIZE
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["page_sizes"] = self.PAGE_SIZES
+        context["current_page_size"] = self.get_paginate_by(None)
+
+        current_ordering = self.request.GET.get("ordering", "")
+        columns = []
+        for field, label in self.SORTABLE_COLUMNS:
+            if current_ordering == field:
+                direction, next_ordering = "asc", f"-{field}"
+            elif current_ordering == f"-{field}":
+                direction, next_ordering = "desc", field
+            else:
+                direction, next_ordering = None, field
+            columns.append({
+                "label": label,
+                "direction": direction,
+                "next_ordering": next_ordering,
+            })
+        context["columns"] = columns
+        return context
 
 
 def admin_logout(request):
@@ -179,6 +245,8 @@ def contact_principal(request):
         # Fetch geolocalisation calling the satac service
         if (localisation is not None) and ('coordinates' in localisation):
             localisation_ppe = get_localisation(request, localisation)
+            if localisation_ppe is None:
+                raise BadRequest("La localisation n'a pas donné de résultat")
             localisation_ppe['nummai'] = nummai
             return render(
                 request,
@@ -188,7 +256,7 @@ def contact_principal(request):
                     "notaire_form": NotaireForm(prefix='notaire'),
                     "signataire_form": SignataireForm(prefix='signataire'),
                     "facturation_form": AdresseFacturationForm(prefix='facturation'),
-                    "localisation_ppe": json.dumps(localisation_ppe),
+                    "localisation_ppe": localisation_ppe
                 }
             )
         else:
@@ -211,9 +279,14 @@ def contact_principal(request):
     if not facturation_form.is_valid():
         raise BadRequest(facturation_form.errors)
 
-    geolocalisation_ppe = json.loads(request.POST["localisation_ppe"])
-    if (round(geolocalisation_ppe["coordinates"][0], 1) != geolocalisation_ppe["coord_est"]
-            or round(geolocalisation_ppe["coordinates"][1], 1) != geolocalisation_ppe["coord_nord"]):
+    try:
+        geolocalisation_ppe = json.loads(request.POST["localisation_ppe"])
+        coordinates = geolocalisation_ppe["coordinates"]
+        coherent = (round(coordinates[0], 1) == geolocalisation_ppe["coord_est"]
+                    and round(coordinates[1], 1) == geolocalisation_ppe["coord_nord"])
+    except (KeyError, ValueError, TypeError):
+        raise BadRequest("Localisation invalide, merci de recommencer.")
+    if not coherent:
         raise BadRequest("Localisation incohérente, merci de recommencer.")
 
     login_code = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits + '._-') for _ in range(16))
@@ -326,6 +399,7 @@ def soumission(request, doc):
 def define_ppe_type(request, doc, type_dossier=None):
     """ Definition of the PPE submission type """
     error_message = None
+    ref_error = None
     type_dossier = request.POST["type_dossier"] if 'type_dossier' in request.POST else 'I'
     code_initial = request.POST["initial_code"] if 'initial_code' in request.POST else None
     ref_geoshop = request.POST["ref_geoshop"] if 'ref_geoshop' in request.POST else None
@@ -371,10 +445,15 @@ def define_ppe_type(request, doc, type_dossier=None):
 
     elif type_dossier == 'M' and code_initial is not None:
         # GET the inital DossierPPE to be replaced or return an error
-        try: 
+        try:
             dossier_ppe_initial = DossierPPE.objects.get(login_code=code_initial)
-        except:
+        except DossierPPE.DoesNotExist:
             error_message = "La référence de commande indiquée n'existe pas."
+            return render(request, "ppe/define_ppe_type.html", {
+                "dossier_ppe": doc,
+                "type_dossier": type_dossier,
+                "error_message": error_message
+            })
 
         # Check if the geolocation of the new submission is the same as the initial one
         if (dossier_ppe.cadastre == dossier_ppe_initial.cadastre and dossier_ppe.nummai == dossier_ppe_initial.nummai):
@@ -386,6 +465,9 @@ def define_ppe_type(request, doc, type_dossier=None):
             return redirect("ppe:overview")
         else:
             error_message = "Le numéro de bien-fonds n'est pas le même que dans le dossier d'origine."    
+
+    elif type_dossier == 'M' and code_initial is None:
+        error_message = "Veuillez indiquer le code du dossier initial à modifier."
 
     elif type_dossier == 'R':
         dossier_ppe.type_dossier = type_dossier
@@ -472,7 +554,7 @@ def edit_geolocalisation(request, doc):
             localisation = json.loads(localisation)
             localisation_ppe = get_localisation(request, localisation)
 
-        if 'nummai' in request.POST and localisation != '':
+        if 'nummai' in request.POST and localisation != '' and localisation_ppe is not None:
             localisation_ppe["nummai"] = request.POST['nummai']
             if geo_form.is_valid():
                 geo_form.save(commit=False)
@@ -487,6 +569,8 @@ def edit_geolocalisation(request, doc):
                 dossier_ppe.save()
                 return redirect("ppe:overview")
         else:
+            if localisation_ppe is None and localisation != '':
+                error_message = "La localisation n'a pas donné de résultat, merci de réessayer."
             return render(request, "ppe/geolocalisation.html", {
                 "error_message": error_message,
                 "localisation_ppe": localisation_ppe,

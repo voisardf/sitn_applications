@@ -1,11 +1,10 @@
 import requests, logging, re, datetime
 from functools import wraps
 
-from .forms import GeolocalisationForm
 from .models import DossierPPE, GeoshopCadastreOrder
 from django.conf import settings
-from django.shortcuts import render, redirect
-from django.http import HttpResponseBadRequest, Http404
+from django.shortcuts import redirect
+from django.http import Http404
 from django.core.mail import EmailMultiAlternatives
 from django.template import loader
 
@@ -40,19 +39,17 @@ def login_required(func):
     return wrapper
 
 def get_localisation(request, localisation):
+    """ Retourne le dict de localisation calculé, ou None en cas d'échec
+    (coordonnées manquantes, hors canton, ou erreur du service satac).
+    Les appelants doivent systématiquement vérifier ce None avant d'utiliser
+    le résultat comme un dict. """
 
     try:
         coords = localisation['coordinates']
         coord_est = round(coords[0],1)
         coord_nord = round(coords[1],1)
     except KeyError:
-        return render(request,
-            "ppe/geolocalisation.html",
-            {
-                "error_message": "Les coordonnées n'ont pas pu être récupérées.",
-                "form": GeolocalisationForm
-            },
-        )
+        return None
 
     if (NE_MIN_EST < coord_est < NE_MAX_EST) and (NE_MIN_NORD < coord_nord < NE_MAX_NORD):
         url = GEOLOC_SERVICE_URL+"X="+str(coord_est)+"&Y="+str(coord_nord)
@@ -86,10 +83,10 @@ def get_localisation(request, localisation):
             numcad = data["numcad"]
             cadastre = data["nomcad"]
         else:
-            return HttpResponseBadRequest("Une erreur inconnue s'est produite. La localisation a échouée.")
+            return None
 
     else:
-        return HttpResponseBadRequest("La localisation semble se situer en dehors du canton.")
+        return None
 
     geoloc = {
         "egrid": "ToDo",
