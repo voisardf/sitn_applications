@@ -26,10 +26,11 @@ class DossierPPEAdmin(WMTSGISModelAdmin):
         'id',
         'cadastre',
         'nummai',
-        'contact_principal',
+        'date_creation',
         'type_dossier',
-        'ref_dossier_initial',
         'statut',
+        'contact_principal',
+        'latest_zipfile_date',
         'latest_zipfile_statut',
         'date_creation',
         'aff_infolica'
@@ -38,10 +39,15 @@ class DossierPPEAdmin(WMTSGISModelAdmin):
          ZipfileInline
     ]
 
-    def latest_zipfile_statut(self, obj):
-            latest_zip = obj.zipfiles.order_by('-upload_date').first()
-            return latest_zip.get_file_statut_display() if latest_zip else "—"
+    def latest_zipfile_date (self, obj):
+        latest_zip = obj.zipfiles.order_by('-upload_date').first()
+        return latest_zip.upload_date if latest_zip else "—"
 
+    def latest_zipfile_statut(self, obj):
+        latest_zip = obj.zipfiles.order_by('-upload_date').first()
+        return latest_zip.get_file_statut_display() if latest_zip else "—"
+
+    latest_zipfile_date.short_description = "Date dernier ZIP"
     latest_zipfile_statut.short_description = "Dernier statut ZIP"
 
 class ContactPrincipalAdmin(admin.ModelAdmin):

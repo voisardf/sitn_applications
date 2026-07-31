@@ -1,4 +1,6 @@
 <tr>
+    {% if user.is_authenticated %} <td width="10%" style="padding-left: 10px;padding-bottom: 20px;">
+        <a href="{% url 'admin:index' %}ppe/zipfile/{{ zip.id }}" target="_admin">{{ zip.id }}</a></td> {% endif %}
     <td width="30%" style="padding-left: 10px;padding-bottom: 20px;">
         {{ zip.upload_date }}
     </td>
@@ -7,26 +9,26 @@
 
 <tr>
     {% if zip.file_statut == "CAC" %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
         Votre dossier est en cours de contrôle automatique.
         Un compte-rendu sera envoyé par e-mail à
         <span style="color:#045043;">{{ dossier_ppe.contact_principal.email }}</span>.
     </td>
 
     {% elif zip.file_statut in "CAE CME" %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
         Veuillez corriger votre dossier et le soumettre à nouveau.
     </td>
     
     {% elif zip.file_statut == "ERR" %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
         Une erreur interne est survenue. Notre équipe y travaille 
         et vous informera de la reprise du contrôle dès que possible à l'adresse 
         <span style="color:#045043;">{{ dossier_ppe.contact_principal.email }}</span>.
     </td>
 
     {% elif zip.file_statut == "CAV" %}
-    <td colspan="2">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %}>
         <a href="{% url 'ppe:submit_for_validation' %}" class="btn btn-success">
             Poursuivre le contrôle de mon dossier
         </a>
@@ -38,31 +40,31 @@
     </td>
 
     {% elif zip.file_statut in 'CMS,CMC' %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
         Votre dossier est en cours de contrôle par l'un de nos collaborateurs, qui prendra contact avec vous 
         dans un délai de 10 jours ouvrables. Vous ne pouvez plus modifier votre dossier pour le moment.
     </td>
 
     {% elif zip.file_statut == "CMV" %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
         Votre dossier est validé. Vous pouvez désormais télécharger les documents définitifs, 
         les imprimer en deux exemplaires et nous les transmettre par courrier.
     </td>
 </tr>
 <tr>
-    <td colspan="2">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %}>
         <br>
         <a href="{% url 'ppe:get_final_documents' %}" class="btn btn-success">Télécharger mes documents</a>
     </td>
 
     {% elif zip.file_statut == 'CPV' %}
-    <td colspan="2" class="alert alert-danger">
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} class="alert alert-danger">
     Votre dossier papier est validé. Il sera signé par le géomètre cantonal puis envoyé au notaire 
     dans un délai de deux jours ouvrables à partir du xx.xx.xxxx (date de changement de statut 6>7).
     </td>
 
     {% else %}
-    <td colspan="2">Une erreur s'est produite. Veuillez nous contacter si elle persiste :
+    <td {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %}>Une erreur s'est produite. Veuillez nous contacter si elle persiste :
         <a href="mailto:sitn@ne.ch?subject=PPE numérique : Un erreur est survenue">sitn@ne.ch</a>
     </td>
     {% endif %}

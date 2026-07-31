@@ -112,6 +112,79 @@ pyproject-hooks==1.2.0
     # via
     #   build
     #   pip-tools
+pystac==1.15.1
+    # via -r requirements.in
+pystac-core==1.15.1
+    # via
+    #   pystac
+    #   pystac-ext-classification
+    #   pystac-ext-datacube
+    #   pystac-ext-eo
+    #   pystac-ext-file
+    #   pystac-ext-grid
+    #   pystac-ext-item-assets
+    #   pystac-ext-label
+    #   pystac-ext-mgrs
+    #   pystac-ext-mlm
+    #   pystac-ext-pointcloud
+    #   pystac-ext-projection
+    #   pystac-ext-raster
+    #   pystac-ext-render
+    #   pystac-ext-sar
+    #   pystac-ext-sat
+    #   pystac-ext-scientific
+    #   pystac-ext-storage
+    #   pystac-ext-table
+    #   pystac-ext-timestamps
+    #   pystac-ext-version
+    #   pystac-ext-view
+    #   pystac-ext-xarray-assets
+pystac-ext-classification==2.0.0
+    # via pystac
+pystac-ext-datacube==2.2.0
+    # via pystac
+pystac-ext-eo==1.1.0
+    # via pystac
+pystac-ext-file==2.1.0
+    # via pystac
+pystac-ext-grid==1.1.0
+    # via pystac
+pystac-ext-item-assets==1.0.0
+    # via pystac
+pystac-ext-label==1.0.1
+    # via pystac
+pystac-ext-mgrs==1.0.0
+    # via pystac
+pystac-ext-mlm==1.4.0
+    # via pystac
+pystac-ext-pointcloud==1.0.0
+    # via pystac
+pystac-ext-projection==2.0.0
+    # via pystac
+pystac-ext-raster==1.1.0
+    # via pystac
+pystac-ext-render==2.0.0
+    # via pystac
+pystac-ext-sar==1.0.0
+    # via pystac
+pystac-ext-sat==1.0.0
+    # via pystac
+pystac-ext-scientific==1.0.0
+    # via pystac
+pystac-ext-storage==2.0.0
+    # via pystac
+pystac-ext-table==1.2.0
+    # via pystac
+pystac-ext-timestamps==1.1.0
+    # via pystac
+pystac-ext-version==1.2.0
+    # via pystac
+pystac-ext-view==1.0.0
+    # via pystac
+pystac-ext-xarray-assets==1.0.0
+    # via pystac
+python-dateutil==2.9.0.post0
+    # via pystac-core
 python-dotenv==1.2.2
     # via -r requirements.in
 pyyaml==6.0.3
@@ -126,6 +199,8 @@ rpds-py==2026.5.1
     # via
     #   jsonschema
     #   referencing
+six==1.17.0
+    # via python-dateutil
 sqlparse==0.5.5
     # via django
 typing-extensions==4.15.0

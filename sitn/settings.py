@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'sitn',
     'roads',
     'cadastre',
+    'panoview',
     "corsheaders",
     'django.contrib.admin',
     'django.contrib.auth',
@@ -99,9 +100,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware'
 ]
-
-if IS_INTRANET:
-    MIDDLEWARE.append('sitn.middleware.RemoteSitnMiddleware')
 
 AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',

@@ -26,35 +26,41 @@ Application de gestion des PPE
             <div id="admin_list">
                 <br>
 
-                <table width="100%" class="table table-striped caption-top">
+                <table width="100%" class="table table-striped caption-top tbl-font-size-sm">
                     <caption>Admin: Liste des dossiers PPE en cours</caption>
                     <thead>
                     <tr>
                         <th>ID</th>
                         <th>Cadastre</th>
-                        <th>No. bien-fonds</th>
+                        <th>Bien-fonds</th>
                         <th>Date création</th>
                         <th>Type dossier</th>
                         <th>Statut dossier</th>
+                        <th>Contact principal</th>
+                        <th>Date dernier zip</th>
                         <th>Statut dernier zip</th>
+                        <th>Infolica</th>
                         <th>Code</th>
                     </tr>
                     </thead>
                     <tbody>
                 {% for dossierppe in latest_dossiers_list %}
                     <tr>
-                        <td>{{ dossierppe.id }}</td>
+                        <td><a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.id }}" target="_admin">{{ dossierppe.id }}</a></td>
                         <td>{{ dossierppe.cadastre }}</td>
                         <td>{{ dossierppe.nummai }}</td>
                         <td>{{ dossierppe.date_creation }}</td>
                         <td>{{ dossierppe.get_type_dossier_display }}
                             {% if dossierppe.get_type_dossier_display == 'Modification' %}
-                            (Réf. initiale: <a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.ref_dossier_initial }}" target="_new">{{ dossierppe.ref_dossier_initial }}</a>)
+                            (Réf. initiale: <a href="{% url 'admin:index' %}ppe/dossierppe/{{ dossierppe.ref_dossier_initial }}" target="_admin">{{ dossierppe.ref_dossier_initial }}</a>)
                             {% endif %}
                         </td>
                         <td>{{ dossierppe.get_statut_display }}</td>
+                        <td>{{ dossierppe.contact_principal.nom}} {{ dossierppe.contact_principal.prenom }}</td>
+                        <td>{{ dossierppe.zipfiles.first.upload_date }}</td>
                         <td>{{ dossierppe.zipfiles.first.get_file_statut_display }}</td>
-                        <td><a href="{% url 'ppe:overview' %}">{{ dossierppe.login_code }}</a></td>
+                        <td>{{ dossierppe.aff_infolica }}</td>
+                        <td><a href="{% url 'ppe:login_direct' dossierppe.login_code %}">{{ dossierppe.login_code }}</a></td>
                     </tr>
                 {% empty %}
                     <p>Aucun dossier n'a été trouvé.</p>

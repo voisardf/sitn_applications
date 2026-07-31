@@ -15,6 +15,7 @@ router = SitnRouter()
 router.register_app('cadastre', 'cadastre/')
 router.register_app('registre_foncier', 'registre_foncier/')
 router.register_app('roads', 'roads/')
+router.register_app('panoview', 'panoview/')
 
 urlpatterns = [
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -26,6 +27,7 @@ urlpatterns = [
     path('cadastre/', include('cadastre.urls')),
     path('registre_foncier/', include('registre_foncier.urls')),
     path('roads/', include('roads.urls')),
+    path('panoview/', include('panoview.urls')),
     path("test-auth/", views.index, name="index"),
 ]
 

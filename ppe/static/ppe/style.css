@@ -225,6 +225,10 @@ input:-webkit-autofill {
   flex-direction: column;
 }
 
+.tbl-font-size-sm {
+  font-size: 0.9rem;
+}
+
 .toggle-btn {
   margin-bottom: 1rem;
   width: 100%;  

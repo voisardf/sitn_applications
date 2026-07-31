@@ -9,7 +9,7 @@ Dépôt d'un dossier - Récapitulatif
     {% if error_message %}<p class="alert alert-danger"><strong>{{ error_message }}</strong></p>{% endif %}
 
     {% if dossier_ppe %}
-    <h3>Récapitulatif</h3>
+    <h3>Récapitulatif {% if user.is_authenticated %}- No. dossier: {{ dossier_ppe.id }} {% endif %}</h3>
 
     <div class="row m-0">
         <div class="col-6">
@@ -179,6 +179,7 @@ Dépôt d'un dossier - Récapitulatif
                     <table width="100%">
                     <thead>
                     <tr>
+                        {% if user.is_authenticated %}<th width="10%" style="padding-top: 20px;">No. ZIP</th> {% endif %}
                         <th width="30%" style="padding-top: 20px;">Date et heure</th><th style="padding-top: 20px;">Statut</th>
                     </tr>
                     </thead>
@@ -192,11 +193,13 @@ Dépôt d'un dossier - Récapitulatif
                     </tbody>
                     {% if dossier_ppe.zipfiles.all|length > 1 %}
                     <tr>
-                        <th colspan="2" style="padding-top: 25px;">Historique</th>
+                        <th {% if user.is_authenticated %} colspan="3" {% else %} colspan="2" {% endif %} style="padding-top: 25px;">Historique</th>
                     </tr>
                     {% endif %}
                 {% else %}
                     <tr>
+                    {% if user.is_authenticated %} <td width="10%" style="padding-left: 10px;">
+                        <a href="{% url 'admin:index' %}ppe/zipfile/{{ zip.id }}" target="_admin">{{ zip.id }}</a></td> {% endif %}
                         <td width="30%" style="padding-left: 10px;">{{ zip.upload_date }}</td>
                         <td style="text-align: left;">{{ zip.get_file_statut_display }}</td>
                     </tr>

@@ -143,7 +143,7 @@ def submit_saisie(request):
         return JsonResponse({"submitted": False, "has_div": has_div}, safe=False)
 
     now = datetime.datetime.now()
-    op = Operation(date=now, user=request.META["HTTP_REMOTE_USER"], complement=data["complement"], plan=plan)
+    op = Operation(date=now, user=request.user.username.split('@')[0].lower(), complement=data["complement"], plan=plan)
 
     operation_id = data["operation_id"] if "operation_id" in data else None
     if operation_id is not None:

@@ -19,32 +19,39 @@ Dépôt d'un dossier:
             <div class="row">
                 <div class="col">
                     <fieldset class="form-group">
-                        <legend>Personne de contact principale</legend>  
-                        <i class="bi bi-info-circle-fill" style="color: cornflowerblue;"></i>
-                        <div id="info_contact"> personne de contact principale est celle qui dépose<br> 
-                            le dossier et recevra les résultats du contrôle. <br>
-                            Il s'agit en principe de la personne qui dessine les plans.
+                        <legend>Personne de contact
+                        <i class="bi bi-info-circle-fill fs-5" style="color: cornflowerblue;"></i>
+                        <div id="info_contact">La personne de contact est celle qui soumet le<br>
+                            dossier et recevra les résultats du contrôle.
                         </div>
-                        {{ contact_form }}
+                        </legend>
+                        {{ contact_form.as_div }}
                     </fieldset>
                 </div>
                 <div class="col">
                     <fieldset>
-                        <legend>Signataire</legend>
-                        <i class="bi bi-info-circle-fill" style="color: cornflowerblue;"></i>
+                        <legend>Signataire
+                        <i class="bi bi-info-circle-fill fs-5" style="color: cornflowerblue;"></i>
                         <div id="info_signataire">
-                            La personne signataire est obligatoirement un·e architecte inscrit·e <br>
-                            au registre neuchâtelois des architectes ou un·e ingénieur-géomètre <br>
-                            breveté·e du canton de Neuchâtel
+                            La personne signataire du dossier est obligatoirement <br>
+                            un·e architecte inscrit·e au registre neuchâtelois des architectes, <br>
+                            un·e ingénieur-géomètre breveté·e inscrite au registre fédéral <br>
+                            des ingénieurs-géomètres ou un·e ingénieur·e en géomatique Reg A <br>
+                            (voir art. 19 RRF).
                         </div>
-                        {{ signataire_form }}
+                        </legend>
+                        {{ signataire_form.as_div }}
                     </fieldset>
+                    <p></p>
                 </div>
             </div>
             <div class="row">
                 <div class="col">
                 <fieldset>
                     <legend>Adresse de facturation</legend>
+                    <p class="alert alert-secondary">Si plusieurs factures doivent être établies, saisissez l'une des adresses dans le formulaire ci-dessous 
+                    puis écrivez-nous à l'adresse <a href="mailto:sgrf.ppe@ne.ch">sgrf.ppe@ne.ch</a> en indiquant les différentes adresses ainsi que les 
+                    différents accords de paiement</p>
                     {% for field in facturation_form %}
                         {% if field.errors %}
                         <div class="alert alert-danger">{{ field.errors }}</div>
@@ -74,27 +81,24 @@ Dépôt d'un dossier:
                 </fieldset>
                 </div>
                 <div class="col">
-                <fieldset>
-                    <legend>Notaire</legend>
-                    {% for field in notaire_form %}
-                        <div class="form-group{% if field.errors %} has-error{% endif %}">
-                            {{ field.label_tag }}
-                            {{ field }}
-
-                            {% if field.errors %}
-                                <ul class="errorlist">
-                                    {% for error in field.errors %}
-                                        <li>{{ error }}</li>
-                                    {% endfor %}
-                                </ul>
+                    <fieldset>
+                        <legend>Notaire</legend>
+                        {% for field in notaire_form %}
+                        <div class="fieldWrapper">
+                            {{ field.errors }}
+                            {{ field.label_tag }} {{ field }}
+                            {% if field.help_text %}
+                            <p class="help" id="{{ field.auto_id }}_helptext">
+                                {{ field.help_text|safe }}
+                            </p>
                             {% endif %}
                         </div>
-                    {% endfor %}
-
-                </fieldset>
+                        {% endfor %}
+                    <p><br><br><br><br></p>
+                    <input type="submit" value="Valider" class="valider btn btn-success">
+                    </fieldset>
+                    <p><br><br></p>
                 </div>
-                <p><br><br></p>
-                <input type="submit" value="Valider" class="valider btn btn-success">
         </form>
 
     
