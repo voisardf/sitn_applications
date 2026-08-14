@@ -1,5 +1,6 @@
 {% load static %}
 {% load i18n %}
+{% load sene_chantiers_extras %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -18,15 +19,21 @@
 </head>
 <body>
 
-  <!-- Header: same arrangement as the ppe app -->
+  <!-- Header: ppe colour band, with the signed-in inspector on the left -->
   <header class="row w-100 m-0 align-items-center">
-    <div id="home" class="entete text-center col-lg-9 col-md-9 col-sm-8 col-7">
+    <div class="user-chip col-lg-3 col-md-3 col-sm-3 col-3">
+      {% if user.is_authenticated %}
+        <span class="user-avatar">{{ user|initials }}</span>
+        <span class="user-name d-none d-md-inline">{{ user|display_name }}</span>
+      {% endif %}
+    </div>
+    <div id="home" class="entete text-center col-lg-6 col-md-6 col-sm-6 col-6">
       <a class="home link-underline link-underline-opacity-0"
          href="{% url 'sene_chantiers:home' %}">
         Suivi environnemental de chantiers
       </a>
     </div>
-    <div id="drapeau" class="drapeau col-lg-3 col-md-3 col-sm-4 col-5 text-end">
+    <div id="drapeau" class="drapeau col-lg-3 col-md-3 col-sm-3 col-3 text-end">
       <a href="https://www.ne.ch/autorites/DDTE/SENE/Pages/accueil.aspx" target="_new">
         <img src="{% static 'images/logo_ne_negatif.png' %}"
              alt="Drapeau du canton NE" />

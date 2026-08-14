@@ -1,0 +1,432 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Rapport de contrôle — {{ chantier.satac_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-11">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+         class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour au récapitulatif
+      </a>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <h2 class="mb-0">Rapport de contrôle environnemental</h2>
+      {% if read_only %}
+        <span class="badge text-bg-secondary">
+          <i class="bi bi-lock"></i> Lecture seule — courriel envoyé
+        </span>
+      {% endif %}
+    </div>
+
+    <form method="post" novalidate id="control-report-form">
+      {% csrf_token %}
+      {# Tab isolation: the server refuses a save whose SATAC does not match. #}
+      <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
+
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab01"
+                  type="button" role="tab">01 &nbsp;Informations générales</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab02"
+                  type="button" role="tab">02 &nbsp;Synthèse par thème</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab03"
+                  type="button" role="tab">03 &nbsp;Mesures à prendre</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab04"
+                  type="button" role="tab">04 &nbsp;Détail des thèmes</button>
+        </li>
+      </ul>
+
+      <fieldset {% if read_only %}disabled{% endif %}>
+      <div class="tab-content">
+
+        {# ---------------------------------------------------------- 01 #}
+        <div class="tab-pane fade show active" id="tab01" role="tabpanel">
+          <section class="sc-section">
+            <header>En-tête du contrôle</header>
+            <div class="sc-section-body">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label class="form-label" for="{{ form.control_date.id_for_label }}">
+                    Date du contrôle <span class="text-danger">*</span>
+                  </label>
+                  {{ form.control_date }}
+                  {{ form.control_date.errors }}
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="{{ form.weather_condition.id_for_label }}">
+                    Conditions météo <span class="text-danger">*</span>
+                  </label>
+                  {{ form.weather_condition }}
+                  {{ form.weather_condition.errors }}
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label" for="{{ form.temperature.id_for_label }}">
+                    Température (°C)
+                  </label>
+                  {{ form.temperature }}
+                  {{ form.temperature.errors }}
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label" for="{{ form.construction_phase.id_for_label }}">
+                    Phase des travaux <span class="text-danger">*</span>
+                  </label>
+                  {{ form.construction_phase }}
+                  {{ form.construction_phase.errors }}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="row g-3">
+            <div class="col-lg-7">
+              <section class="sc-section h-100">
+                <header>Informations du chantier</header>
+                <div class="sc-section-body">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">N° SATAC</dt>
+                    <dd class="col-sm-8">{{ chantier.satac_number }}</dd>
+                    <dt class="col-sm-4">Chantier</dt>
+                    <dd class="col-sm-8">{{ chantier.site_name }}</dd>
+                    <dt class="col-sm-4">Adresse</dt>
+                    <dd class="col-sm-8">{{ chantier.adresse }}</dd>
+                    <dt class="col-sm-4">Commune</dt>
+                    <dd class="col-sm-8">{{ chantier.commune.comnom }}</dd>
+                    <dt class="col-sm-4">Maître d'ouvrage</dt>
+                    <dd class="col-sm-8">{{ chantier.maitre_ouvrage }}</dd>
+                    <dt class="col-sm-4">Entreprise générale</dt>
+                    <dd class="col-sm-8 mb-0">
+                      {{ chantier.entreprise_generale|default:"—" }}
+                    </dd>
+                  </dl>
+                </div>
+              </section>
+            </div>
+            <div class="col-lg-5">
+              <section class="sc-section h-100">
+                <header>Appréciation globale</header>
+                <div class="sc-section-body">
+                  {{ form.global_appreciation_is_manual_override }}
+                  <div id="global-appreciation-choices">
+                    {% for radio in form.global_appreciation %}
+                      <div class="form-check">
+                        {{ radio.tag }}
+                        <label class="form-check-label" for="{{ radio.id_for_label }}">
+                          <span class="sc-pill sc-pill--{{ radio.data.value }}">
+                            {{ radio.choice_label }}
+                          </span>
+                        </label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                  <p class="form-text mb-0" id="appreciation-note">
+                    Calculée automatiquement depuis la section 04, modifiable
+                    manuellement.
+                  </p>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <section class="sc-section">
+            <header>Inspecteur SENE</header>
+            <div class="sc-section-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Inspecteur</label>
+                  <input type="text" class="form-control"
+                         value="{{ report.inspector.get_full_name|default:report.inspector.username }}"
+                         disabled>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="{{ form.signature_date.id_for_label }}">
+                    Date de signature
+                  </label>
+                  {{ form.signature_date }}
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="{{ form.next_control_date.id_for_label }}">
+                    Prochain contrôle prévu
+                  </label>
+                  {{ form.next_control_date }}
+                  {{ form.next_control_date.errors }}
+                  <div class="form-text">
+                    Délai de mise en conformité, requis si non conforme.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {# ---------------------------------------------------------- 02 #}
+        <div class="tab-pane fade" id="tab02" role="tabpanel">
+          <section class="sc-section">
+            <header>Synthèse par thème — résumé de la section 04</header>
+            <div class="sc-section-body p-0">
+              {{ theme_formset.management_form }}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col" style="width:18%">Thème</th>
+                      <th scope="col" style="width:16%">Appréciation</th>
+                      <th scope="col" style="width:12%">Points contrôlés</th>
+                      <th scope="col">Remarques principales</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for subform in theme_formset %}
+                      <tr data-theme-id="{{ subform.instance.theme_id }}">
+                        {{ subform.id }}
+                        <td>{{ subform.instance.theme.label }}</td>
+                        <td>{{ subform.appreciation }}</td>
+                        <td class="sc-points-checked text-muted">—</td>
+                        <td>
+                          {{ subform.synthesis_remarks }}
+                          {{ subform.synthesis_remarks.errors }}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {# ---------------------------------------------------------- 03 #}
+        <div class="tab-pane fade" id="tab03" role="tabpanel">
+          <section class="sc-section">
+            <header class="d-flex justify-content-between align-items-center">
+              <span>Mesures à prendre</span>
+              <button type="button" class="btn btn-sm btn-success" id="add-measure">
+                <i class="bi bi-plus-lg"></i> Ajouter une mesure
+              </button>
+            </header>
+            <div class="sc-section-body p-0">
+              {{ measure_formset.management_form }}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0" id="measures-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" style="width:6%">N°</th>
+                      <th scope="col">Mesure</th>
+                      <th scope="col" style="width:18%">Responsable</th>
+                      <th scope="col" style="width:14%">Échéance</th>
+                      <th scope="col" style="width:14%">Statut</th>
+                      <th scope="col" style="width:6%"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for subform in measure_formset %}
+                      <tr class="measure-row">
+                        {{ subform.id }}
+                        <td>{{ subform.order }}</td>
+                        <td>{{ subform.description }}{{ subform.description.errors }}</td>
+                        <td>{{ subform.responsible }}</td>
+                        <td>{{ subform.deadline }}</td>
+                        <td>{{ subform.status }}</td>
+                        <td class="text-end">
+                          {% if subform.instance.pk %}
+                            <label class="btn btn-sm btn-outline-danger mb-0"
+                                   title="Supprimer">
+                              {{ subform.DELETE }} <i class="bi bi-trash"></i>
+                            </label>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <p class="form-text px-3 pt-2 mb-2">
+                Au moins une mesure est requise lorsque le chantier n'est pas
+                conforme.
+              </p>
+            </div>
+          </section>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <section class="sc-section h-100">
+                <header>Observations générales</header>
+                <div class="sc-section-body">
+                  {{ form.observations_generales }}
+                  {{ form.observations_generales.errors }}
+                </div>
+              </section>
+            </div>
+            <div class="col-md-6">
+              <section class="sc-section h-100">
+                <header>Procédure de contrôle</header>
+                <div class="sc-section-body">
+                  {{ form.procedure_controle }}
+                  {{ form.procedure_controle.errors }}
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        {# ---------------------------------------------------------- 04 #}
+        <div class="tab-pane fade" id="tab04" role="tabpanel">
+          {{ answer_formset.management_form }}
+          {% for block in answers_by_theme %}
+            <section class="sc-section" data-theme-block="{{ block.theme.id }}">
+              <header>{{ block.theme.label }}</header>
+              <div class="sc-section-body p-0">
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Point contrôlé</th>
+                        <th scope="col" style="width:32%">Conformité</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for subform in block.forms %}
+                        <tr>
+                          {{ subform.id }}
+                          <td>{{ subform.instance.control_point.label }}</td>
+                          <td>
+                            <div class="d-flex gap-3">
+                              {% for radio in subform.conformity %}
+                                <div class="form-check">
+                                  {{ radio.tag }}
+                                  <label class="form-check-label"
+                                         for="{{ radio.id_for_label }}">
+                                    {{ radio.choice_label }}
+                                  </label>
+                                </div>
+                              {% endfor %}
+                            </div>
+                            {{ subform.conformity.errors }}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          {% endfor %}
+        </div>
+
+      </div>
+      </fieldset>
+
+      {% if not read_only %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-lg"></i> Enregistrer le rapport
+          </button>
+          <button type="submit" name="save_draft" value="1"
+                  class="btn btn-outline-secondary">
+            <i class="bi bi-save"></i> Enregistrer le brouillon
+          </button>
+          <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+             class="btn btn-outline-secondary">Retour au récapitulatif</a>
+        </div>
+      {% endif %}
+
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Live mirror of the server-side cascade, so the inspector sees the
+  // consequence of a checklist answer immediately. The server recomputes
+  // authoritatively on save.
+  const NO = 'no', NA = 'na';
+
+  function themeAppreciation(values) {
+    const answered = values.filter(Boolean);
+    if (!answered.length) return null;
+    if (answered.every(v => v === NA)) return 'jaune';
+    const bad = answered.filter(v => v === NO).length;
+    return bad === 0 ? 'vert' : (bad === 1 ? 'jaune' : 'rouge');
+  }
+
+  function refresh() {
+    const themeValues = [];
+    document.querySelectorAll('[data-theme-block]').forEach(block => {
+      const id = block.dataset.themeBlock;
+      const rows = block.querySelectorAll('tbody tr');
+      const values = [];
+      rows.forEach(row => {
+        const picked = row.querySelector('input[type=radio]:checked');
+        values.push(picked ? picked.value : null);
+      });
+      const appr = themeAppreciation(values);
+      const answered = values.filter(Boolean).length;
+      const assessed = values.filter(v => v && v !== NA).length;
+
+      const summaryRow = document.querySelector(`tr[data-theme-id="${id}"]`);
+      if (summaryRow) {
+        const select = summaryRow.querySelector('select.sc-appr');
+        if (select && appr) select.value = appr;
+        const cell = summaryRow.querySelector('.sc-points-checked');
+        if (cell) cell.textContent = `${assessed} / ${rows.length}`;
+      }
+      if (appr) themeValues.push(appr);
+      else if (answered === 0) themeValues.push('vert');
+    });
+
+    const bad = themeValues.filter(v => v !== 'vert').length;
+    const global = bad === 0 ? 'vert' : (bad === 1 ? 'jaune' : 'rouge');
+    const override = document.querySelector('[name$="global_appreciation_is_manual_override"]');
+    if (override && override.value !== 'True') {
+      const radio = document.querySelector(`#global-appreciation-choices input[value="${global}"]`);
+      if (radio) radio.checked = true;
+    }
+  }
+
+  document.addEventListener('change', function (event) {
+    if (event.target.matches('#tab04 input[type=radio]')) refresh();
+    if (event.target.matches('#global-appreciation-choices input[type=radio]')) {
+      const override = document.querySelector('[name$="global_appreciation_is_manual_override"]');
+      if (override) override.value = 'True';
+      document.getElementById('appreciation-note').textContent =
+        'Modifiée manuellement.';
+    }
+  });
+
+  // Section 03: append a blank measure row by cloning the empty form.
+  const addBtn = document.getElementById('add-measure');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      const total = document.querySelector('[name="measures-TOTAL_FORMS"]');
+      const tbody = document.querySelector('#measures-table tbody');
+      const last = tbody.querySelector('.measure-row:last-child');
+      if (!last || !total) return;
+      const index = parseInt(total.value, 10);
+      const clone = last.cloneNode(true);
+      clone.querySelectorAll('input, select, textarea').forEach(el => {
+        if (el.name) el.name = el.name.replace(/-\d+-/, `-${index}-`);
+        if (el.id) el.id = el.id.replace(/-\d+-/, `-${index}-`);
+        if (el.type === 'checkbox') el.checked = false;
+        else if (el.tagName !== 'SELECT') el.value = '';
+      });
+      tbody.appendChild(clone);
+      total.value = index + 1;
+    });
+  }
+
+  refresh();
+})();
+</script>
+{% endblock %}

@@ -18,4 +18,14 @@ urlpatterns = [
         views.chantier_create,
         name="chantier_create",
     ),
+    path(
+        "chantier/<int:satac_number>/rapport-controle/nouveau/",
+        views.control_report_create,
+        name="control_report_create",
+    ),
+    path(
+        "chantier/<int:satac_number>/rapport-controle/",
+        views.control_report_edit,
+        name="control_report_edit",
+    ),
 ]

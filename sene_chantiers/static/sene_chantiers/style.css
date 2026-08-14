@@ -49,6 +49,48 @@ header {
   text-align: center;
 }
 
+/* Signed-in inspector, as shown in the mockups but adapted to the
+   dark-green band: a translucent avatar rather than the mockup's teal. */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.user-avatar {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-name {
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Page content keeps the mockup's proportions but the SITN font stack. */
+main,
+.sc-section,
+.table,
+.form-control,
+.form-select,
+.btn {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .sc-footer {
   border-top: 1px solid var(--sc-border);
   margin-top: 2rem;
