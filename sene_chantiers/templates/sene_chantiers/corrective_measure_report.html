@@ -1,4 +1,5 @@
 {% extends "sene_chantiers/base.html" %}
+{% load static %}
 
 {% block title %}Rapport de suivi — {{ chantier.satac_number }}{% endblock %}
 
@@ -153,6 +154,8 @@
               </section>
             </div>
           </div>
+
+          {% include "sene_chantiers/_photo_block.html" %}
         </div>
 
         {# ---------------------------------------------------------- 02 #}
@@ -321,6 +324,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 <script>
 (function () {
   // Mirrors the server-side follow-up cascade so the conclusion reacts as

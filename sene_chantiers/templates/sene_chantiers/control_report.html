@@ -1,4 +1,5 @@
 {% extends "sene_chantiers/base.html" %}
+{% load static %}
 
 {% block title %}Rapport de contrôle — {{ chantier.satac_number }}{% endblock %}
 
@@ -184,6 +185,8 @@
               </div>
             </div>
           </section>
+
+          {% include "sene_chantiers/_photo_block.html" %}
         </div>
 
         {# ---------------------------------------------------------- 02 #}
@@ -387,6 +390,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 <script>
 (function () {
   // Live mirror of the server-side cascade, so the inspector sees the

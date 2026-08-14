@@ -38,4 +38,16 @@ urlpatterns = [
         views.corrective_measure_report_edit,
         name="corrective_measure_report_edit",
     ),
+    path(
+        "rapport/<str:kind>/<int:pk>/photos/",
+        views.photo_upload,
+        name="photo_upload",
+    ),
+    path(
+        "rapport/<str:kind>/<int:pk>/photos/etat/",
+        views.photo_status,
+        name="photo_status",
+    ),
+    path("photos/<int:pk>/remarques/", views.photo_caption, name="photo_caption"),
+    path("photos/<int:pk>/supprimer/", views.photo_delete, name="photo_delete"),
 ]

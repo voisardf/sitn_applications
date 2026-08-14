@@ -1,8 +1,17 @@
-/* sene_chantiers
-   Header band: ppe colours and arrangement, for consistency across the
-   SITN applications.
-   Page content: the design tokens and typographic scale of the A4/HTML
-   mockups, but on the ppe font stack rather than the mockups' own. */
+/* sene_chantiers — application stylesheet.
+ *
+ * Holds only what differs from sitn-bootstrap; anything the shared
+ * Bootstrap build already provides is used as-is and not repeated here.
+ *
+ * Two sources are combined deliberately:
+ *   - the header band reproduces ppe verbatim, so the SITN applications
+ *     look consistent to their users;
+ *   - the page content follows the design tokens and typographic scale of
+ *     the A4/HTML mockups, on the ppe font stack rather than the mockups'
+ *     own font.
+ *
+ * Do not add rules here that merely restate a Bootstrap default.
+ */
 
 :root {
   --navy: #1c2b4a;
@@ -33,7 +42,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   background: var(--bg);
   color: var(--text);
-  -webkit-font-smoothing: antialiased;
 }
 
 /* ---------------------------------------------------------- header band */
@@ -65,9 +73,6 @@ header {
   text-align: center;
 }
 
-.drapeau img {
-  max-height: 48px;
-}
 
 .user-chip {
   display: flex;
@@ -442,4 +447,90 @@ main .form-text {
   background: var(--sc-rouge-bg);
   border-color: var(--sc-rouge);
   color: var(--sc-rouge);
+}
+
+/* ------------------------------------------------------ photo block */
+
+.sc-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  text-align: center;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sc-dropzone.is-over {
+  background: #f2f7ff;
+  border-color: var(--navy-light);
+}
+
+/* Filmstrip on narrow viewports, wrapping gallery when there is room. */
+.sc-filmstrip {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+@media (min-width: 768px) {
+  .sc-filmstrip {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+.sc-photo {
+  width: 190px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.sc-photo-frame {
+  width: 190px;
+  height: 140px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #f7f8fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sc-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-photo-pending,
+.sc-photo-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.sc-photo-failed {
+  color: var(--sc-rouge);
+  font-size: 22px;
+}
+
+.sc-photo-caption {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 6px 0 4px;
+  min-height: 1.2em;
+  word-break: break-word;
+}
+
+.sc-photo-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }

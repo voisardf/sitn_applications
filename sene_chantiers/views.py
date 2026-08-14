@@ -4,10 +4,11 @@ Every view is gated on SSO authentication plus membership of the
 sene_chantiers_admin group.
 """
 
+from django.conf import settings
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Max
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -38,6 +39,8 @@ from .models import (
     FollowUpStatus,
     MeasureFollowUp,
     MeasureStatus,
+    Photo,
+    PhotoStatus,
     Theme,
     ThemeAssessment,
     WeatherCondition,
@@ -340,6 +343,8 @@ def control_report_edit(request, satac_number):
             "measure_formset": measures,
             "answers_by_theme": _group_answers(answers),
             "read_only": read_only,
+            "photo_kind": "controle",
+            "photo_max_mb": settings.SENE_CHANTIERS_PHOTO_MAX_SIZE_MB,
         },
     )
 
@@ -540,6 +545,8 @@ def corrective_measure_report_edit(request, pk):
             "first_control_date": chantier.control_report.control_date,
             "observations": followup_observations(report),
             "read_only": read_only,
+            "photo_kind": "suivi",
+            "photo_max_mb": settings.SENE_CHANTIERS_PHOTO_MAX_SIZE_MB,
         },
     )
 
@@ -554,3 +561,87 @@ def _apply_followup_cascade(report, form):
         if report.global_appreciation != suggested:
             report.global_appreciation = suggested
             report.save(update_fields=["global_appreciation"])
+
+
+def _report_from_kind(kind, pk):
+    """Resolve the report a photo belongs to, from the URL."""
+    if kind == "controle":
+        return get_object_or_404(ControlReport, pk=pk)
+    if kind == "suivi":
+        return get_object_or_404(CorrectiveMeasureReport, pk=pk)
+    raise Http404("Type de rapport inconnu.")
+
+
+def _photo_payload(photo):
+    return {
+        "id": photo.pk,
+        "status": photo.status,
+        "caption": photo.caption,
+        "error": photo.error_message,
+        "url": photo.image.url if photo.image else "",
+    }
+
+
+@sene_chantiers_admin_required
+def photo_upload(request, kind, pk):
+    """Stage an uploaded photo; the worker sanitises it out of band."""
+    report = _report_from_kind(kind, pk)
+    if report.is_locked:
+        raise PermissionDenied("Le rapport est verrouillé.")
+    if request.method != "POST":
+        raise Http404()
+
+    uploaded = request.FILES.get("photo")
+    if not uploaded:
+        return JsonResponse({"error": "Aucun fichier reçu."}, status=400)
+
+    photo = Photo(caption="", status=PhotoStatus.PENDING)
+    if isinstance(report, ControlReport):
+        photo.control_report = report
+    else:
+        photo.corrective_measure_report = report
+    photo.raw_upload = uploaded
+
+    try:
+        # Runs the extension and size validators before anything is stored.
+        photo.full_clean(exclude=["image"])
+    except ValidationError as exc:
+        first = next(iter(exc.message_dict.values()))[0]
+        return JsonResponse({"error": first}, status=400)
+
+    photo.save()
+    return JsonResponse(_photo_payload(photo), status=201)
+
+
+@sene_chantiers_admin_required
+def photo_caption(request, pk):
+    """Save the per-photo remark."""
+    photo = get_object_or_404(Photo, pk=pk)
+    if photo.report.is_locked:
+        raise PermissionDenied("Le rapport est verrouillé.")
+    if request.method != "POST":
+        raise Http404()
+    photo.caption = request.POST.get("caption", "").strip()
+    photo.save(update_fields=["caption"])
+    return JsonResponse(_photo_payload(photo))
+
+
+@sene_chantiers_admin_required
+def photo_delete(request, pk):
+    """Remove a photo from a report that is still editable."""
+    photo = get_object_or_404(Photo, pk=pk)
+    if photo.report.is_locked:
+        raise PermissionDenied("Le rapport est verrouillé.")
+    if request.method != "POST":
+        raise Http404()
+    photo.delete()
+    return JsonResponse({"deleted": True})
+
+
+@sene_chantiers_admin_required
+def photo_status(request, kind, pk):
+    """Poll the queue so the UI can show progress while the worker runs."""
+    report = _report_from_kind(kind, pk)
+    return JsonResponse(
+        {"photos": [_photo_payload(p) for p in report.photos.all()]}
+    )

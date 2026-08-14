@@ -13,3 +13,20 @@ services:
     volumes:
       - ${UPLOAD_DATA_PATH}:/upload:rw
       - ${DATA_PATH}:/data:ro
+
+  # sene_chantiers photo sanitisation and deadline digest. Same image as
+  # apps, different command. This is the only service with /data mounted
+  # read-write, so request-handling code stays structurally unable to
+  # write there.
+  sene_chantiers_worker:
+    image: ${DOCKER_BASE}
+    depends_on:
+      - apps
+    env_file: ${ENV_FILE}
+    command: >
+      sh -c ". venv/bin/activate &&
+             python manage.py process_photo_uploads --loop"
+    restart: unless-stopped
+    volumes:
+      - ${UPLOAD_DATA_PATH}:/upload:rw
+      - ${DATA_PATH}:/data:rw

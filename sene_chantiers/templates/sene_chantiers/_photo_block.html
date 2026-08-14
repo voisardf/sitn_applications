@@ -1,0 +1,84 @@
+{# Photo block, identical on both report forms: end of section 01. #}
+<section class="sc-section" id="photo-block"
+         data-kind="{{ photo_kind }}" data-report="{{ report.pk }}">
+  <header>
+    <div class="sc-section-head-left">
+      <span class="sc-badge"><i class="bi bi-camera"></i></span>
+      <p class="mb-0">Photos du contrôle</p>
+    </div>
+  </header>
+  <div class="sc-section-body">
+
+    {% if not read_only %}
+      <div class="sc-dropzone" id="photo-dropzone">
+        <p class="mb-2">
+          <i class="bi bi-cloud-arrow-up"></i>
+          Glisser des photos ici, ou
+        </p>
+        <label class="btn btn-outline-secondary mb-0">
+          <i class="bi bi-folder2-open"></i> Parcourir
+          <input type="file" id="photo-input" accept="image/*" multiple hidden>
+        </label>
+        <p class="form-text mb-0 mt-2">
+          JPEG, PNG, WebP ou HEIC — {{ photo_max_mb }} Mo au maximum par photo.
+        </p>
+      </div>
+    {% endif %}
+
+    <div class="sc-filmstrip" id="photo-strip">
+      {% for photo in report.photos.all %}
+        <figure class="sc-photo" data-photo="{{ photo.pk }}"
+                data-status="{{ photo.status }}">
+          <div class="sc-photo-frame">
+            {% if photo.image %}
+              <img src="{{ photo.image.url }}" alt="Photo du contrôle">
+            {% else %}
+              <div class="sc-photo-pending">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <span>Traitement…</span>
+              </div>
+            {% endif %}
+          </div>
+          <figcaption class="sc-photo-caption">{{ photo.caption }}</figcaption>
+          {% if not read_only %}
+            <div class="sc-photo-actions">
+              <button type="button" class="btn btn-sm btn-outline-secondary js-caption">
+                Remarques
+              </button>
+              <button type="button" class="btn sc-icon-btn is-pdf js-delete"
+                      title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          {% endif %}
+        </figure>
+      {% empty %}
+        <p class="text-muted mb-0" id="photo-empty">Aucune photo pour ce contrôle.</p>
+      {% endfor %}
+    </div>
+
+  </div>
+</section>
+
+{# Caption editor, one dialog reused by every thumbnail. #}
+<div class="modal fade" id="caption-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Remarques</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <textarea class="form-control" id="caption-text" rows="4"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary"
+                data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-success" id="caption-save">
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
