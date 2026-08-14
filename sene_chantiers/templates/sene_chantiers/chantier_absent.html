@@ -13,7 +13,12 @@
     </nav>
 
     <section class="sc-section">
-      <header>Aucun dossier pour le n° SATAC {{ satac_number }}</header>
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge"><i class="bi bi-folder-plus"></i></span>
+          <p class="mb-0">Aucun dossier pour le n° SATAC {{ satac_number }}</p>
+        </div>
+      </header>
       <div class="sc-section-body">
 
         {% if satac_result %}
@@ -21,20 +26,24 @@
             Cette autorisation de construire existe. Vérifier qu'il s'agit
             du bon chantier avant d'ouvrir un dossier de suivi.
           </p>
-          <dl class="row">
-            <dt class="col-sm-3">N° SATAC</dt>
-            <dd class="col-sm-9">{{ satac_result.satac_number }}</dd>
+          <dl class="sc-meta mb-3">
+            <div>
+              <div class="label">N° SATAC</div>
+              <div class="value">{{ satac_result.satac_number }}</div>
+            </div>
             {% if satac_result.commune_name %}
-              <dt class="col-sm-3">Commune</dt>
-              <dd class="col-sm-9">{{ satac_result.commune_name }}</dd>
+              <div>
+                <div class="label">Commune</div>
+                <div class="value">{{ satac_result.commune_name }}</div>
+              </div>
             {% endif %}
             {% if satac_result.geom %}
-              <dt class="col-sm-3">Localisation</dt>
-              <dd class="col-sm-9">
-                {{ satac_result.geom.x|floatformat:0 }},
-                {{ satac_result.geom.y|floatformat:0 }}
-                <span class="text-muted">(MN95)</span>
-              </dd>
+              <div>
+                <div class="label">Localisation (MN95)</div>
+                <div class="value">
+                  {{ satac_result.geom.x|floatformat:0 }}, {{ satac_result.geom.y|floatformat:0 }}
+                </div>
+              </div>
             {% endif %}
           </dl>
           {% for warning in satac_result.warnings %}

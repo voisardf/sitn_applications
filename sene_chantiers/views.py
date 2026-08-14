@@ -17,6 +17,8 @@ from .forms import (
     ControlPointAnswerFormSet,
     ControlReportForm,
     CorrectiveMeasureFormSet,
+    CorrectiveMeasureReportForm,
+    MeasureFollowUpFormSet,
     ThemeAssessmentFormSet,
 )
 from .labels import (
@@ -31,7 +33,11 @@ from .models import (
     ControlPoint,
     ControlPointAnswer,
     ControlReport,
+    CorrectiveMeasureReport,
     EmailStatus,
+    FollowUpStatus,
+    MeasureFollowUp,
+    MeasureStatus,
     Theme,
     ThemeAssessment,
     WeatherCondition,
@@ -379,3 +385,172 @@ def _group_answers(answer_formset):
         point = subform.instance.control_point
         grouped.setdefault(point.theme, []).append(subform)
     return [{"theme": theme, "forms": forms_} for theme, forms_ in grouped.items()]
+
+
+# Section 03 of a follow-up is generated from the data rather than typed.
+def followup_observations(report):
+    """The templated 'observations générales' paragraph."""
+    followups = list(report.measure_followups.all())
+    total = len(followups)
+    fixed = sum(1 for f in followups if f.status == FollowUpStatus.CLOSED)
+    remaining = total - fixed
+
+    parts = [
+        f"Lors du contrôle de suivi du "
+        f"{report.follow_up_date.strftime('%d.%m.%Y')}, les mesures "
+        f"correctives prescrites dans le rapport précédent ont été "
+        f"vérifiées sur place.",
+        f"{fixed} mesure(s) sur {total} ont été corrigées et sont conformes.",
+    ]
+    if remaining:
+        parts.append(
+            f"{remaining} mesure(s) restent partiellement réalisées et "
+            f"feront l'objet d'un nouveau contrôle."
+        )
+    parts.append(
+        report.new_anomalies_description.strip()
+        or "Aucune nouvelle anomalie n'a été constatée."
+    )
+    return parts
+
+
+def _previous_report(chantier):
+    """The most recently settled report, which a new follow-up chains from."""
+    last_followup = chantier.corrective_measure_reports.order_by(
+        "-follow_up_date", "-pk"
+    ).first()
+    if last_followup:
+        return last_followup
+    return getattr(chantier, "control_report", None)
+
+
+# The initial report's measure statuses map onto the follow-up vocabulary.
+_CARRY_OVER_STATUS = {
+    MeasureStatus.CLOSED: FollowUpStatus.CLOSED,
+    MeasureStatus.IN_PROGRESS: FollowUpStatus.OPEN,
+    MeasureStatus.OPEN: FollowUpStatus.OPEN,
+}
+
+
+@sene_chantiers_admin_required
+def corrective_measure_report_create(request, satac_number):
+    """Open the next follow-up, chained from the most recent control."""
+    chantier = get_object_or_404(Chantier, satac_number=satac_number)
+    control_report = getattr(chantier, "control_report", None)
+    if control_report is None:
+        messages.error(
+            request, "Le contrôle initial doit exister avant un suivi."
+        )
+        return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
+    if request.method != "POST":
+        return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
+
+    previous = _previous_report(chantier)
+    previous_followup = (
+        previous if isinstance(previous, CorrectiveMeasureReport) else None
+    )
+
+    report = CorrectiveMeasureReport.objects.create(
+        chantier=chantier,
+        previous_followup=previous_followup,
+        follow_up_date=timezone.localdate(),
+        inspector=request.user,
+    )
+
+    # Carry over every measure of the initial report, with the state it had
+    # at the previous control.
+    previous_states = {}
+    if previous_followup:
+        previous_states = {
+            f.original_measure_id: f.status
+            for f in previous_followup.measure_followups.all()
+        }
+
+    MeasureFollowUp.objects.bulk_create([
+        MeasureFollowUp(
+            corrective_measure_report=report,
+            original_measure=measure,
+            state_at_previous_control=previous_states.get(
+                measure.pk, _CARRY_OVER_STATUS.get(measure.status, FollowUpStatus.OPEN)
+            ),
+            status=previous_states.get(
+                measure.pk, _CARRY_OVER_STATUS.get(measure.status, FollowUpStatus.OPEN)
+            ),
+        )
+        for measure in control_report.corrective_measures.all()
+    ])
+
+    messages.success(request, "Rapport de suivi créé.")
+    return redirect(
+        "sene_chantiers:corrective_measure_report_edit", pk=report.pk
+    )
+
+
+@sene_chantiers_admin_required
+def corrective_measure_report_edit(request, pk):
+    """Sections 01 to 04 of a corrective-measures follow-up report."""
+    report = get_object_or_404(
+        CorrectiveMeasureReport.objects.select_related("chantier"), pk=pk
+    )
+    chantier = report.chantier
+    read_only = report.is_locked
+
+    if request.method == "POST" and not read_only:
+        posted_satac = request.POST.get("satac_number")
+        if posted_satac and str(posted_satac) != str(chantier.satac_number):
+            raise PermissionDenied("Le rapport soumis ne correspond pas au dossier.")
+
+        form = CorrectiveMeasureReportForm(request.POST, instance=report)
+        followups = MeasureFollowUpFormSet(
+            request.POST, instance=report, prefix="followups"
+        )
+        is_draft = "save_draft" in request.POST
+
+        if is_draft:
+            if form.is_valid():
+                form.save()
+            if followups.is_valid():
+                followups.save()
+            messages.info(request, "Brouillon enregistré.")
+            return redirect(
+                "sene_chantiers:corrective_measure_report_edit", pk=report.pk
+            )
+
+        if form.is_valid() and followups.is_valid():
+            report = form.save()
+            followups.save()
+            _apply_followup_cascade(report, form)
+            messages.success(request, "Rapport de suivi enregistré.")
+            return redirect(
+                "sene_chantiers:chantier_landing",
+                satac_number=chantier.satac_number,
+            )
+    else:
+        form = CorrectiveMeasureReportForm(instance=report)
+        followups = MeasureFollowUpFormSet(instance=report, prefix="followups")
+
+    return render(
+        request,
+        "sene_chantiers/corrective_measure_report.html",
+        {
+            "chantier": chantier,
+            "report": report,
+            "form": form,
+            "followup_formset": followups,
+            "first_control_date": chantier.control_report.control_date,
+            "observations": followup_observations(report),
+            "read_only": read_only,
+        },
+    )
+
+
+def _apply_followup_cascade(report, form):
+    """Recompute the global appreciation from the measure statuses."""
+    statuses = list(
+        report.measure_followups.values_list("status", flat=True)
+    )
+    suggested = appreciation_service.followup_global_appreciation(statuses)
+    if not form.cleaned_data.get("global_appreciation_is_manual_override"):
+        if report.global_appreciation != suggested:
+            report.global_appreciation = suggested
+            report.save(update_fields=["global_appreciation"])

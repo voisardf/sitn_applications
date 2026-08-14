@@ -14,7 +14,7 @@
     </nav>
 
     <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-      <h2 class="mb-0">Rapport de contrôle environnemental</h2>
+      <h1 class="sc-page-title">Rapport de contrôle environnemental</h1>
       {% if read_only %}
         <span class="badge text-bg-secondary">
           <i class="bi bi-lock"></i> Lecture seule — courriel envoyé
@@ -52,7 +52,12 @@
         {# ---------------------------------------------------------- 01 #}
         <div class="tab-pane fade show active" id="tab01" role="tabpanel">
           <section class="sc-section">
-            <header>En-tête du contrôle</header>
+            <header>
+              <div class="sc-section-head-left">
+                <span class="sc-badge">01</span>
+                <p class="mb-0">En-tête du contrôle</p>
+              </div>
+            </header>
             <div class="sc-section-body">
               <div class="row g-3">
                 <div class="col-md-3">
@@ -90,30 +95,38 @@
           <div class="row g-3">
             <div class="col-lg-7">
               <section class="sc-section h-100">
-                <header>Informations du chantier</header>
+                <header>
+                  <div class="sc-section-head-left">
+                    <span class="sc-badge">i</span>
+                    <p class="mb-0">Informations du chantier</p>
+                  </div>
+                </header>
                 <div class="sc-section-body">
-                  <dl class="row mb-0">
-                    <dt class="col-sm-4">N° SATAC</dt>
-                    <dd class="col-sm-8">{{ chantier.satac_number }}</dd>
-                    <dt class="col-sm-4">Chantier</dt>
-                    <dd class="col-sm-8">{{ chantier.site_name }}</dd>
-                    <dt class="col-sm-4">Adresse</dt>
-                    <dd class="col-sm-8">{{ chantier.adresse }}</dd>
-                    <dt class="col-sm-4">Commune</dt>
-                    <dd class="col-sm-8">{{ chantier.commune.comnom }}</dd>
-                    <dt class="col-sm-4">Maître d'ouvrage</dt>
-                    <dd class="col-sm-8">{{ chantier.maitre_ouvrage }}</dd>
-                    <dt class="col-sm-4">Entreprise générale</dt>
-                    <dd class="col-sm-8 mb-0">
-                      {{ chantier.entreprise_generale|default:"—" }}
-                    </dd>
+                  <dl class="sc-meta">
+                    <div><div class="label">N° SATAC</div>
+                      <div class="value">{{ chantier.satac_number }}</div></div>
+                    <div><div class="label">Chantier</div>
+                      <div class="value">{{ chantier.site_name }}</div></div>
+                    <div><div class="label">Adresse</div>
+                      <div class="value">{{ chantier.adresse }}</div></div>
+                    <div><div class="label">Commune</div>
+                      <div class="value">{{ chantier.commune.comnom }}</div></div>
+                    <div><div class="label">Maître d'ouvrage</div>
+                      <div class="value">{{ chantier.maitre_ouvrage }}</div></div>
+                    <div><div class="label">Entreprise générale</div>
+                      <div class="value">{{ chantier.entreprise_generale|default:"—" }}</div></div>
                   </dl>
                 </div>
               </section>
             </div>
             <div class="col-lg-5">
               <section class="sc-section h-100">
-                <header>Appréciation globale</header>
+                <header>
+                  <div class="sc-section-head-left">
+                    <span class="sc-badge"><i class="bi bi-award"></i></span>
+                    <p class="mb-0">Appréciation globale</p>
+                  </div>
+                </header>
                 <div class="sc-section-body">
                   {{ form.global_appreciation_is_manual_override }}
                   <div id="global-appreciation-choices">
@@ -138,7 +151,12 @@
           </div>
 
           <section class="sc-section">
-            <header>Inspecteur SENE</header>
+            <header>
+              <div class="sc-section-head-left">
+                <span class="sc-badge"><i class="bi bi-person"></i></span>
+                <p class="mb-0">Inspecteur SENE</p>
+              </div>
+            </header>
             <div class="sc-section-body">
               <div class="row g-3">
                 <div class="col-md-6">
@@ -171,7 +189,12 @@
         {# ---------------------------------------------------------- 02 #}
         <div class="tab-pane fade" id="tab02" role="tabpanel">
           <section class="sc-section">
-            <header>Synthèse par thème — résumé de la section 04</header>
+            <header>
+              <div class="sc-section-head-left">
+                <span class="sc-badge">02</span>
+                <p class="mb-0">Synthèse par thème — résumé de la section 04</p>
+              </div>
+            </header>
             <div class="sc-section-body p-0">
               {{ theme_formset.management_form }}
               <div class="table-responsive">
@@ -208,7 +231,10 @@
         <div class="tab-pane fade" id="tab03" role="tabpanel">
           <section class="sc-section">
             <header class="d-flex justify-content-between align-items-center">
-              <span>Mesures à prendre</span>
+              <div class="sc-section-head-left">
+                <span class="sc-badge">03</span>
+                <p class="mb-0">Mesures à prendre</p>
+              </div>
               <button type="button" class="btn btn-sm btn-success" id="add-measure">
                 <i class="bi bi-plus-lg"></i> Ajouter une mesure
               </button>
@@ -259,7 +285,12 @@
           <div class="row g-3">
             <div class="col-md-6">
               <section class="sc-section h-100">
-                <header>Observations générales</header>
+                <header>
+                  <div class="sc-section-head-left">
+                    <span class="sc-badge"><i class="bi bi-chat-left-text"></i></span>
+                    <p class="mb-0">Observations générales</p>
+                  </div>
+                </header>
                 <div class="sc-section-body">
                   {{ form.observations_generales }}
                   {{ form.observations_generales.errors }}
@@ -268,7 +299,12 @@
             </div>
             <div class="col-md-6">
               <section class="sc-section h-100">
-                <header>Procédure de contrôle</header>
+                <header>
+                  <div class="sc-section-head-left">
+                    <span class="sc-badge"><i class="bi bi-list-check"></i></span>
+                    <p class="mb-0">Procédure de contrôle</p>
+                  </div>
+                </header>
                 <div class="sc-section-body">
                   {{ form.procedure_controle }}
                   {{ form.procedure_controle.errors }}
@@ -283,7 +319,12 @@
           {{ answer_formset.management_form }}
           {% for block in answers_by_theme %}
             <section class="sc-section" data-theme-block="{{ block.theme.id }}">
-              <header>{{ block.theme.label }}</header>
+              <header>
+                <div class="sc-section-head-left">
+                  <span class="sc-badge">04</span>
+                  <p class="mb-0">{{ block.theme.label }}</p>
+                </div>
+              </header>
               <div class="sc-section-body p-0">
                 <div class="table-responsive">
                   <table class="table align-middle mb-0">

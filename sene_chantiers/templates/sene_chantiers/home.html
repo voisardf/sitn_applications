@@ -5,7 +5,12 @@
   <div class="col-xl-9">
 
     <section class="sc-section">
-      <header>Rechercher un chantier</header>
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge"><i class="bi bi-search"></i></span>
+          <p class="mb-0">Rechercher un chantier</p>
+        </div>
+      </header>
       <div class="sc-section-body">
         <label for="satac-search" class="form-label">
           N° SATAC du chantier
@@ -23,7 +28,12 @@
     </section>
 
     <section class="sc-section">
-      <header>Derniers dossiers modifiés</header>
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">01</span>
+          <p class="mb-0">Derniers dossiers modifiés</p>
+        </div>
+      </header>
       <div class="sc-section-body p-0">
         {% if recent_dossiers %}
           <div class="table-responsive">
@@ -54,7 +64,7 @@
                     <td>{{ dossier.entreprise_generale|default:"—" }}</td>
                     <td>{{ dossier.created_at|date:"d.m.Y" }}</td>
                     <td class="text-end">
-                      <a class="btn btn-sm btn-outline-secondary"
+                      <a class="btn sc-icon-btn"
                          href="{% url 'sene_chantiers:chantier_landing' satac_number=dossier.satac_number %}"
                          title="Ouvrir le dossier">
                         <i class="bi bi-eye"></i>

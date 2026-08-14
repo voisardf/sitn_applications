@@ -13,48 +13,68 @@
     </nav>
 
     <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-      <h2 class="mb-0">{{ chantier.site_name }}</h2>
+      <h1 class="sc-page-title">{{ chantier.site_name }}</h1>
       <span class="sc-pill sc-pill--{{ chantier.appreciation|default:'vert' }}">
         {{ chantier.appreciation_label }}
       </span>
     </div>
 
     <section class="sc-section">
-      <header>Informations générales</header>
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">i</span>
+          <p class="mb-0">Informations générales</p>
+        </div>
+      </header>
       <div class="sc-section-body">
-        <dl class="row mb-0">
-          <dt class="col-sm-3">N° SATAC</dt>
-          <dd class="col-sm-9">{{ chantier.satac_number }}</dd>
-
-          <dt class="col-sm-3">Adresse</dt>
-          <dd class="col-sm-9">{{ chantier.adresse }}</dd>
-
-          <dt class="col-sm-3">Commune</dt>
-          <dd class="col-sm-9">{{ chantier.commune.comnom }}</dd>
-
-          <dt class="col-sm-3">Maître d'ouvrage</dt>
-          <dd class="col-sm-9">
-            {{ chantier.maitre_ouvrage }}
-            <span class="text-muted">&lt;{{ chantier.maitre_ouvrage_email }}&gt;</span>
-          </dd>
-
-          <dt class="col-sm-3">Entreprise générale</dt>
-          <dd class="col-sm-9">{{ chantier.entreprise_generale|default:"—" }}</dd>
-
-          <dt class="col-sm-3">Date de création</dt>
-          <dd class="col-sm-9 mb-0">{{ chantier.created_at|date:"d.m.Y" }}</dd>
+        <dl class="sc-meta">
+          <div>
+            <div class="label">N° SATAC</div>
+            <div class="value">{{ chantier.satac_number }}</div>
+          </div>
+          <div>
+            <div class="label">Adresse</div>
+            <div class="value">{{ chantier.adresse }}</div>
+          </div>
+          <div>
+            <div class="label">Commune</div>
+            <div class="value">{{ chantier.commune.comnom }}</div>
+          </div>
+          <div>
+            <div class="label">Maître d'ouvrage</div>
+            <div class="value">{{ chantier.maitre_ouvrage }}</div>
+          </div>
+          <div>
+            <div class="label">E-mail maître d'ouvrage</div>
+            <div class="value">{{ chantier.maitre_ouvrage_email }}</div>
+          </div>
+          <div>
+            <div class="label">Entreprise générale</div>
+            <div class="value">{{ chantier.entreprise_generale|default:"—" }}</div>
+          </div>
+          <div>
+            <div class="label">Date de création</div>
+            <div class="value">{{ chantier.created_at|date:"d.m.Y" }}</div>
+          </div>
         </dl>
       </div>
     </section>
 
     <section class="sc-section">
       <header class="d-flex justify-content-between align-items-center">
-        <span>01 &nbsp; Historique des rapports</span>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">01</span>
+          <p class="mb-0">Historique des rapports</p>
+        </div>
         {% if reports %}
-          <button type="button" class="btn btn-sm btn-success disabled"
-                  title="Disponible à l'étape suivante">
-            <i class="bi bi-plus-lg"></i> Nouveau suivi (mesures correctives)
-          </button>
+          <form method="post"
+                action="{% url 'sene_chantiers:corrective_measure_report_create' satac_number=chantier.satac_number %}"
+                class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-success">
+              <i class="bi bi-plus-lg"></i> Nouveau suivi (mesures correctives)
+            </button>
+          </form>
         {% else %}
           <form method="post"
                 action="{% url 'sene_chantiers:control_report_create' satac_number=chantier.satac_number %}"
@@ -88,32 +108,33 @@
                         {{ report.appreciation_label }}
                       </span>
                     </td>
-                    <td class="text-end text-nowrap">
+                    <td class="text-end text-nowrap"><div class="sc-icon-row">
                       {% if report.kind == 'control' %}
-                        <a class="btn btn-sm btn-outline-secondary"
+                        <a class="btn sc-icon-btn"
                            href="{% url 'sene_chantiers:control_report_edit' satac_number=chantier.satac_number %}"
                            title="{% if report.is_locked %}Consulter{% else %}Modifier{% endif %}">
                           <i class="bi {% if report.is_locked %}bi-eye{% else %}bi-pencil{% endif %}"></i>
                         </a>
                       {% else %}
-                        <span class="btn btn-sm btn-outline-secondary disabled"
-                              title="Modifier — étape suivante">
-                          <i class="bi bi-pencil"></i>
-                        </span>
+                        <a class="btn sc-icon-btn"
+                           href="{% url 'sene_chantiers:corrective_measure_report_edit' pk=report.pk %}"
+                           title="{% if report.is_locked %}Consulter{% else %}Modifier{% endif %}">
+                          <i class="bi {% if report.is_locked %}bi-eye{% else %}bi-pencil{% endif %}"></i>
+                        </a>
                       {% endif %}
-                      <span class="btn btn-sm btn-outline-secondary disabled"
+                      <span class="btn sc-icon-btn is-excel disabled"
                             title="Export Excel — étape à venir">
                         <i class="bi bi-file-earmark-spreadsheet"></i>
                       </span>
-                      <span class="btn btn-sm btn-outline-secondary disabled"
+                      <span class="btn sc-icon-btn is-pdf disabled"
                             title="Export PDF — étape à venir">
                         <i class="bi bi-file-earmark-pdf"></i>
                       </span>
-                      <span class="btn btn-sm btn-outline-secondary disabled"
+                      <span class="btn sc-icon-btn is-mail disabled"
                             title="Courriel — étape à venir">
                         <i class="bi bi-envelope"></i>
                       </span>
-                    </td>
+                    </div></td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -127,7 +148,12 @@
 
     {% if emails %}
       <section class="sc-section">
-        <header>02 &nbsp; Courriels</header>
+        <header>
+          <div class="sc-section-head-left">
+            <span class="sc-badge">02</span>
+            <p class="mb-0">Courriels</p>
+          </div>
+        </header>
         <div class="sc-section-body p-0">
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -150,7 +176,7 @@
                     </td>
                     <td>{{ email.subject }}</td>
                     <td class="text-end">
-                      <span class="btn btn-sm btn-outline-secondary disabled"
+                      <span class="btn sc-icon-btn is-mail disabled"
                             title="{% if email.is_sent %}Consulter{% else %}Modifier le brouillon{% endif %} — étape à venir">
                         <i class="bi {% if email.is_sent %}bi-eye{% else %}bi-pencil{% endif %}"></i>
                       </span>

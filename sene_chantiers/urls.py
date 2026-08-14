@@ -28,4 +28,14 @@ urlpatterns = [
         views.control_report_edit,
         name="control_report_edit",
     ),
+    path(
+        "chantier/<int:satac_number>/rapport-suivi/nouveau/",
+        views.corrective_measure_report_create,
+        name="corrective_measure_report_create",
+    ),
+    path(
+        "rapport-suivi/<int:pk>/",
+        views.corrective_measure_report_edit,
+        name="corrective_measure_report_edit",
+    ),
 ]

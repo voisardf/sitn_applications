@@ -12,6 +12,9 @@ from .models import (
     ControlPointAnswer,
     ControlReport,
     CorrectiveMeasure,
+    CorrectiveMeasureReport,
+    FollowUpStatus,
+    MeasureFollowUp,
     ThemeAssessment,
 )
 
@@ -191,4 +194,89 @@ ControlPointAnswerFormSet = inlineformset_factory(
 CorrectiveMeasureFormSet = inlineformset_factory(
     ControlReport, CorrectiveMeasure, form=CorrectiveMeasureForm,
     extra=1, can_delete=True,
+)
+
+
+class CorrectiveMeasureReportForm(forms.ModelForm):
+    """Header, section 01 appreciation and section 03/04 of a follow-up."""
+
+    class Meta:
+        model = CorrectiveMeasureReport
+        fields = [
+            "follow_up_date",
+            "next_control_date",
+            "global_appreciation",
+            "global_appreciation_is_manual_override",
+            "new_anomalies_description",
+            "is_denunciation_escalation",
+            "final_closure_state",
+            "signature_date",
+        ]
+        widgets = {
+            "follow_up_date": DATE_INPUT,
+            "next_control_date": DATE_INPUT,
+            "signature_date": DATE_INPUT,
+            "new_anomalies_description": forms.Textarea(attrs={"rows": 3}),
+            "global_appreciation_is_manual_override": forms.HiddenInput(),
+            "global_appreciation": forms.RadioSelect(),
+            "final_closure_state": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        optional = {
+            "next_control_date", "signature_date", "new_anomalies_description",
+            "is_denunciation_escalation", "final_closure_state",
+            "global_appreciation_is_manual_override",
+        }
+        for name, field in self.fields.items():
+            field.required = name not in optional
+            if name == "is_denunciation_escalation":
+                field.widget.attrs.setdefault("class", "form-check-input")
+            elif name == "global_appreciation":
+                field.widget.attrs.setdefault("class", "form-check-input")
+            elif name not in ("global_appreciation_is_manual_override",
+                              "final_closure_state"):
+                field.widget.attrs.setdefault("class", "form-control")
+
+
+class MeasureFollowUpForm(forms.ModelForm):
+    """Section 02 row: one measure of the initial report, re-checked."""
+
+    class Meta:
+        model = MeasureFollowUp
+        fields = ["findings", "status", "responsible", "new_deadline"]
+        widgets = {
+            "findings": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "status": forms.Select(attrs={"class": "form-select sc-followup-status"}),
+            "responsible": forms.TextInput(attrs={"class": "form-control"}),
+            "new_deadline": forms.DateInput(
+                format="%Y-%m-%d", attrs={"type": "date", "class": "form-control"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["findings"].required = True
+        self.fields["status"].required = True
+        self.fields["new_deadline"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        # A measure that is not closed must carry a new deadline.
+        if cleaned.get("status") and cleaned["status"] != FollowUpStatus.CLOSED:
+            if not cleaned.get("new_deadline"):
+                self.add_error(
+                    "new_deadline",
+                    _("Une nouvelle échéance est requise tant que la mesure "
+                      "n'est pas fermée."),
+                )
+        return cleaned
+
+
+# The rows mirror the initial report's measures, so none may be added or
+# removed here.
+MeasureFollowUpFormSet = inlineformset_factory(
+    CorrectiveMeasureReport, MeasureFollowUp, form=MeasureFollowUpForm,
+    extra=0, can_delete=False,
 )

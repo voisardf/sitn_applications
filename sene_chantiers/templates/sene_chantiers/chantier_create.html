@@ -13,13 +13,18 @@
       </a>
     </nav>
 
-    <h2 class="mb-3">Ouvrir un dossier de suivi</h2>
+    <h1 class="sc-page-title mb-3">Ouvrir un dossier de suivi</h1>
 
     <form method="post" novalidate>
       {% csrf_token %}
 
       <section class="sc-section">
-        <header>Informations générales</header>
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">01</span>
+          <p class="mb-0">Informations générales</p>
+        </div>
+      </header>
         <div class="sc-section-body">
 
           <div class="mb-3">

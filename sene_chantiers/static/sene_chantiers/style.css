@@ -1,26 +1,42 @@
-/* sene_chantiers — visual language taken from the A4 report mockups:
-   the Vert/Jaune/Rouge traffic-light system and the boxed sections. */
+/* sene_chantiers
+   Header band: ppe colours and arrangement, for consistency across the
+   SITN applications.
+   Page content: the design tokens and typographic scale of the A4/HTML
+   mockups, but on the ppe font stack rather than the mockups' own. */
 
 :root {
-  --sc-vert: #2e7d32;
-  --sc-vert-bg: #e8f5e9;
-  --sc-jaune: #f9a825;
-  --sc-jaune-bg: #fff8e1;
-  --sc-rouge: #c62828;
-  --sc-rouge-bg: #ffebee;
-  --sc-border: #d5d9de;
-}
+  --navy: #1c2b4a;
+  --navy-light: #2a3f66;
+  --bg: #eef1f5;
+  --card: #ffffff;
+  --border: #e2e6ec;
+  --text: #1f2937;
+  --text-secondary: #6b7280;
+  --radius: 0.375rem;
 
-/* Header band: same colour scheme, font, sizing and arrangement as the
-   ppe app, so the SITN applications stay visually consistent. */
+  /* Appreciation traffic light. Deliberately NOT mapped onto Bootstrap's
+     success/warning/danger: its "warning" is a pale pink, which would
+     break the Vert/Jaune/Rouge reading the paper forms depend on. */
+  --sc-vert: #2e8b45;
+  --sc-vert-dark: #1f6b34;
+  --sc-jaune: #e2a222;
+  --sc-rouge: #d32f2f;
+  --sc-vert-bg: #e9f5ec;
+  --sc-jaune-bg: #fdf4e1;
+  --sc-rouge-bg: #fdeaea;
+}
 
 body {
   width: 100%;
   margin: 0;
   min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
-  background: white;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ---------------------------------------------------------- header band */
 
 header {
   width: 100%;
@@ -49,8 +65,10 @@ header {
   text-align: center;
 }
 
-/* Signed-in inspector, as shown in the mockups but adapted to the
-   dark-green band: a translucent avatar rather than the mockup's teal. */
+.drapeau img {
+  max-height: 48px;
+}
+
 .user-chip {
   display: flex;
   align-items: center;
@@ -81,38 +99,209 @@ header {
   text-overflow: ellipsis;
 }
 
-/* Page content keeps the mockup's proportions but the SITN font stack. */
-main,
-.sc-section,
-.table,
-.form-control,
-.form-select,
-.btn {
+/* ------------------------------------------------- panels (sc-section) */
+
+.sc-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.sc-section > header {
+  /* Overrides the page header rules above, which target the element name. */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  height: auto;
+  padding: 16px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  border-top: 0;
+  color: var(--navy);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 14.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
 }
 
-.sc-footer {
-  border-top: 1px solid var(--sc-border);
-  margin-top: 2rem;
-  font-size: 0.875rem;
-  color: #555;
+.sc-section-head-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
-/* --- Appreciation pills (Vert / Jaune / Rouge) --------------------- */
+.sc-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.sc-section-body {
+  padding: 16px 20px;
+}
+
+.sc-section-body.p-0 {
+  padding: 0;
+}
+
+.sc-page-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--navy);
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- tables */
+
+.sc-section table {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.sc-section thead th {
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  padding: 10px 20px;
+  background: #f7f8fa;
+  border-bottom: 1px solid var(--border);
+}
+
+.sc-section tbody td {
+  padding: 13px 20px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.sc-section tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ------------------------------------------- definition lists (meta) */
+
+.sc-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px 28px;
+  margin: 0;
+}
+
+.sc-meta .label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.sc-meta .value {
+  font-size: 13.5px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------ buttons */
+
+.sc-section .btn,
+main .btn {
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: var(--radius);
+  padding: 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+main .btn-sm {
+  font-size: 12px;
+  padding: 7px 12px;
+}
+
+/* Square icon buttons, as in the mockups' action columns. */
+.sc-icon-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0 !important;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy);
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.sc-icon-btn:hover {
+  background: #f2f4f7;
+  border-color: #c7cedb;
+  color: var(--navy);
+}
+
+.sc-icon-btn.is-excel:hover {
+  color: var(--sc-vert);
+  border-color: var(--sc-vert);
+}
+
+.sc-icon-btn.is-pdf:hover {
+  color: var(--sc-rouge);
+  border-color: var(--sc-rouge);
+}
+
+.sc-icon-btn.is-mail:hover {
+  color: var(--navy-light);
+  border-color: var(--navy-light);
+}
+
+.sc-icon-btn.disabled {
+  opacity: 0.45;
+}
+
+.sc-icon-row {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* -------------------------------------------------- appreciation pills */
 
 .sc-pill {
   display: inline-block;
-  padding: 0.15rem 0.7rem;
+  padding: 4px 10px;
   border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   border: 1px solid transparent;
   white-space: nowrap;
 }
 
 .sc-pill--vert {
   background: var(--sc-vert-bg);
-  color: var(--sc-vert);
+  color: var(--sc-vert-dark);
   border-color: var(--sc-vert);
 }
 
@@ -128,26 +317,65 @@ main,
   border-color: var(--sc-rouge);
 }
 
-/* --- Section frames, mirroring the paper form --------------------- */
+/* ------------------------------------------------------ tabs and forms */
 
-.sc-section {
-  border: 1px solid var(--sc-border);
-  border-radius: 0.4rem;
-  margin-bottom: 1.25rem;
+.nav-tabs {
+  border-bottom: 1px solid var(--border);
 }
 
-.sc-section > header {
-  background: #f5f7f9;
-  border-bottom: 1px solid var(--sc-border);
-  padding: 0.5rem 0.9rem;
-  font-weight: 600;
+.nav-tabs .nav-link {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
 }
 
-.sc-section > .sc-section-body {
-  padding: 0.9rem;
+.nav-tabs .nav-link.active {
+  color: var(--navy);
+  background: transparent;
+  border-bottom-color: var(--navy);
 }
 
-/* --- Search block on the home page -------------------------------- */
+main .form-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+main .form-control,
+main .form-select {
+  font-size: 13.5px;
+  border-color: var(--border);
+  border-radius: var(--radius);
+}
+
+main .form-check-label {
+  font-size: 13.5px;
+}
+
+main .form-text {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------- footer */
+
+.sc-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: var(--card);
+}
+
+/* --------------------------------------------------- search dropdown */
 
 .sc-search-results {
   position: absolute;
@@ -156,30 +384,62 @@ main,
   max-height: 18rem;
   overflow-y: auto;
   background: #fff;
-  border: 1px solid var(--sc-border);
-  border-radius: 0 0 0.4rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-size: 13.5px;
 }
 
-.sc-search-results button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: none;
-  padding: 0.5rem 0.9rem;
+.sc-search-results a:hover,
+.sc-search-results a:focus {
+  background: #f2f4f7;
 }
 
-.sc-search-results button:hover,
-.sc-search-results button:focus {
-  background: #eef4ff;
-}
-
-/* Tablet is the priority input target: keep tap targets comfortable. */
+/* Tablet is the priority input target: keep tap targets comfortable
+   while leaving the layout free to use the full viewport width. */
 @media (max-width: 992px) {
-  .form-control,
-  .form-select,
-  .btn {
+  main .form-control,
+  main .form-select,
+  main .btn {
     min-height: 2.75rem;
   }
+
+  .sc-section thead th,
+  .sc-section tbody td {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* ------------------------------------------- follow-up conclusion box */
+
+.sc-conclusion {
+  border: 1px solid transparent;
+  border-left-width: 5px;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  font-size: 13.5px;
+}
+
+.sc-conclusion-title {
+  font-weight: 800;
+  font-size: 14.5px;
+}
+
+.sc-conclusion--vert {
+  background: var(--sc-vert-bg);
+  border-color: var(--sc-vert);
+  color: var(--sc-vert-dark);
+}
+
+.sc-conclusion--jaune {
+  background: var(--sc-jaune-bg);
+  border-color: var(--sc-jaune);
+  color: #8a6100;
+}
+
+.sc-conclusion--rouge {
+  background: var(--sc-rouge-bg);
+  border-color: var(--sc-rouge);
+  color: var(--sc-rouge);
 }
