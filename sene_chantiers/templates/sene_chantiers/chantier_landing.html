@@ -130,10 +130,11 @@
                             title="Export PDF — étape à venir">
                         <i class="bi bi-file-earmark-pdf"></i>
                       </span>
-                      <span class="btn sc-icon-btn is-mail disabled"
-                            title="Courriel — étape à venir">
+                      <a class="btn sc-icon-btn is-mail"
+                         href="{% url 'sene_chantiers:email_manager' kind=report.kind_slug pk=report.pk %}"
+                         title="Courriel d'information">
                         <i class="bi bi-envelope"></i>
-                      </span>
+                      </a>
                     </div></td>
                   </tr>
                 {% endfor %}

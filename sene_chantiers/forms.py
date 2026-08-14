@@ -13,6 +13,7 @@ from .models import (
     ControlReport,
     CorrectiveMeasure,
     CorrectiveMeasureReport,
+    EmailRecord,
     FollowUpStatus,
     MeasureFollowUp,
     ThemeAssessment,
@@ -280,3 +281,16 @@ MeasureFollowUpFormSet = inlineformset_factory(
     CorrectiveMeasureReport, MeasureFollowUp, form=MeasureFollowUpForm,
     extra=0, can_delete=False,
 )
+
+
+class EmailRecordForm(forms.ModelForm):
+    """Subject, body and recipient, all editable before sending."""
+
+    class Meta:
+        model = EmailRecord
+        fields = ["recipient_email", "subject", "body"]
+        widgets = {
+            "recipient_email": forms.EmailInput(attrs={"class": "form-control"}),
+            "subject": forms.TextInput(attrs={"class": "form-control"}),
+            "body": forms.Textarea(attrs={"rows": 18, "class": "form-control"}),
+        }

@@ -1,0 +1,215 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Courriel — {{ chantier.satac_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+         class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour au récapitulatif
+      </a>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <h1 class="sc-page-title">Courriel d'information</h1>
+      {% if is_sent %}
+        <span class="sc-pill sc-pill--vert">
+          <i class="bi bi-send-check"></i>
+          Envoyé le {{ record.sent_at|date:"d.m.Y à H:i" }}
+        </span>
+      {% else %}
+        <span class="badge text-bg-secondary">Brouillon</span>
+      {% endif %}
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
+
+      <fieldset {% if is_sent %}disabled{% endif %}>
+
+        <section class="sc-section">
+          <header>
+            <div class="sc-section-head-left">
+              <span class="sc-badge">01</span>
+              <p class="mb-0">Modèle et destinataire</p>
+            </div>
+            {% if not is_sent %}
+              <button type="submit" name="action" value="reset"
+                      class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-counterclockwise"></i>
+                Réinitialiser depuis le modèle
+              </button>
+            {% endif %}
+          </header>
+          <div class="sc-section-body">
+            <dl class="sc-meta mb-3">
+              <div>
+                <div class="label">Modèle appliqué</div>
+                <div class="value">{{ template_label }}</div>
+              </div>
+              <div>
+                <div class="label">Rapport concerné</div>
+                <div class="value">
+                  {% if kind == 'controle' %}Contrôle environnemental
+                  {% else %}Suivi des mesures correctives{% endif %}
+                </div>
+              </div>
+              <div>
+                <div class="label">Chantier</div>
+                <div class="value">{{ chantier.site_name }}</div>
+              </div>
+            </dl>
+
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.recipient_email.id_for_label }}">
+                Destinataire <span class="text-danger">*</span>
+              </label>
+              {{ form.recipient_email }}
+              {{ form.recipient_email.errors }}
+              <div class="form-text">
+                Repris du maître d'ouvrage, modifiable avant l'envoi.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sc-section">
+          <header>
+            <div class="sc-section-head-left">
+              <span class="sc-badge">02</span>
+              <p class="mb-0">Message</p>
+            </div>
+          </header>
+          <div class="sc-section-body">
+            <div class="mb-3">
+              <label class="form-label" for="{{ form.subject.id_for_label }}">
+                Objet <span class="text-danger">*</span>
+              </label>
+              {{ form.subject }}
+              {{ form.subject.errors }}
+            </div>
+            <div>
+              <label class="form-label" for="{{ form.body.id_for_label }}">
+                Texte du courriel
+              </label>
+              {{ form.body }}
+              {{ form.body.errors }}
+            </div>
+          </div>
+        </section>
+
+        <section class="sc-section">
+          <header>
+            <div class="sc-section-head-left">
+              <span class="sc-badge">03</span>
+              <p class="mb-0">Pièces jointes</p>
+            </div>
+            <span id="budget-pill"
+                  class="sc-pill {% if budget.over_limit %}sc-pill--jaune{% else %}sc-pill--vert{% endif %}">
+              <span id="budget-value">{{ budget.megabytes }}</span> Mo /
+              {{ budget.limit_mb }} Mo
+            </span>
+          </header>
+          <div class="sc-section-body">
+            <p class="form-text mt-0">
+              Le rapport PDF est joint automatiquement et régénéré à l'envoi.
+              La limite de {{ budget.limit_mb }} Mo est indicative : au-delà,
+              il reste possible d'envoyer ou de désélectionner des photos.
+            </p>
+
+            {% if available_photos %}
+              <div class="sc-filmstrip">
+                {% for photo in available_photos %}
+                  <figure class="sc-photo">
+                    <label class="d-block" style="cursor:pointer">
+                      <div class="sc-photo-frame">
+                        <img src="{% url 'sene_chantiers:photo_file' pk=photo.pk %}"
+                             alt="Photo du contrôle">
+                      </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input js-attach" type="checkbox"
+                               name="photos" value="{{ photo.pk }}"
+                               data-size="{{ photo.image.size }}"
+                               {% if photo.pk in selected_ids %}checked{% endif %}>
+                        <span class="form-check-label">Joindre</span>
+                      </div>
+                    </label>
+                    <figcaption class="sc-photo-caption">{{ photo.caption }}</figcaption>
+                  </figure>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted mb-0">
+                Aucune photo traitée n'est disponible pour ce rapport.
+              </p>
+            {% endif %}
+          </div>
+        </section>
+
+      </fieldset>
+
+      {% if not is_sent %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button type="submit" name="action" value="send" class="btn btn-success"
+                  id="send-btn">
+            <i class="bi bi-send"></i> Envoyer le courriel
+          </button>
+          <button type="submit" name="action" value="save"
+                  class="btn btn-outline-secondary">
+            <i class="bi bi-save"></i> Enregistrer le brouillon
+          </button>
+          <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+             class="btn btn-outline-secondary">Annuler</a>
+        </div>
+        <p class="form-text mt-2">
+          <i class="bi bi-info-circle"></i>
+          L'envoi verrouille définitivement le rapport : il passera en
+          lecture seule.
+        </p>
+      {% endif %}
+
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Live attachment budget. Advisory only: going over warns but never
+  // blocks the send.
+  const LIMIT_MB = {{ budget.limit_mb }};
+  const pill = document.getElementById('budget-pill');
+  const value = document.getElementById('budget-value');
+  const sendBtn = document.getElementById('send-btn');
+  if (!pill) return;
+
+  function refresh() {
+    let bytes = 0;
+    document.querySelectorAll('.js-attach:checked').forEach(cb => {
+      bytes += parseInt(cb.dataset.size || '0', 10);
+    });
+    const mb = bytes / (1024 * 1024);
+    value.textContent = mb.toFixed(2);
+    const over = mb > LIMIT_MB;
+    pill.classList.toggle('sc-pill--jaune', over);
+    pill.classList.toggle('sc-pill--vert', !over);
+    if (sendBtn) {
+      sendBtn.title = over
+        ? `Au-delà de ${LIMIT_MB} Mo — l'envoi reste possible.`
+        : '';
+    }
+  }
+
+  document.addEventListener('change', function (event) {
+    if (event.target.matches('.js-attach')) refresh();
+  });
+  refresh();
+})();
+</script>
+{% endblock %}

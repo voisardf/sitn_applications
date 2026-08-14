@@ -4,12 +4,15 @@ Every view is gated on SSO authentication plus membership of the
 sene_chantiers_admin group.
 """
 
+import os
+
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Max
-from django.http import Http404, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .auth import sene_chantiers_admin_required
@@ -19,6 +22,7 @@ from .forms import (
     ControlReportForm,
     CorrectiveMeasureFormSet,
     CorrectiveMeasureReportForm,
+    EmailRecordForm,
     MeasureFollowUpFormSet,
     ThemeAssessmentFormSet,
 )
@@ -35,7 +39,9 @@ from .models import (
     ControlPointAnswer,
     ControlReport,
     CorrectiveMeasureReport,
+    EmailRecord,
     EmailStatus,
+    EmailTemplate,
     FollowUpStatus,
     MeasureFollowUp,
     MeasureStatus,
@@ -46,6 +52,7 @@ from .models import (
     WeatherCondition,
 )
 from .services import appreciation as appreciation_service
+from .services import emails as email_service
 from .services import satac
 
 RECENT_DOSSIERS_LIMIT = 5
@@ -77,6 +84,7 @@ def _dossier_reports(chantier):
         rows.append(
             {
                 "kind": "control",
+                "kind_slug": "controle",
                 "pk": control_report.pk,
                 "label": "Contrôle environnemental",
                 "date": control_report.control_date,
@@ -93,6 +101,7 @@ def _dossier_reports(chantier):
         rows.append(
             {
                 "kind": "followup",
+                "kind_slug": "suivi",
                 "pk": followup.pk,
                 "label": f"Suivi des mesures correctives {index}",
                 "date": followup.follow_up_date,
@@ -578,7 +587,10 @@ def _photo_payload(photo):
         "status": photo.status,
         "caption": photo.caption,
         "error": photo.error_message,
-        "url": photo.image.url if photo.image else "",
+        "url": (
+            reverse("sene_chantiers:photo_file", args=[photo.pk])
+            if photo.image else ""
+        ),
     }
 
 
@@ -644,4 +656,117 @@ def photo_status(request, kind, pk):
     report = _report_from_kind(kind, pk)
     return JsonResponse(
         {"photos": [_photo_payload(p) for p in report.photos.all()]}
+    )
+
+
+@sene_chantiers_admin_required
+def photo_file(request, pk):
+    """Stream a sanitised photo from the read-only data volume.
+
+    /data is not web-served, and these are site photographs that must not
+    be publicly reachable, so they go through the same access gate as
+    every other view — mirroring ppe's get_final_documents.
+    """
+    photo = get_object_or_404(Photo, pk=pk)
+    if not photo.image:
+        raise Http404("Photo non disponible.")
+
+    path = os.path.join(settings.DOWNLOAD_ROOT, photo.image.name)
+    if not os.path.exists(path):
+        raise Http404("Fichier introuvable.")
+
+    return FileResponse(open(path, "rb"))
+
+
+@sene_chantiers_admin_required
+def email_manager(request, kind, pk):
+    """Prepare, edit, save as draft and send a report's notification email.
+
+    A draft is overwritten in place, per the specification: only a sent
+    record becomes a permanent history entry.
+    """
+    report = _report_from_kind(kind, pk)
+    chantier = report.chantier
+
+    record = report.email_records.filter(status=EmailStatus.DRAFT).first()
+    sent_record = report.email_records.filter(status=EmailStatus.SENT).first()
+    is_sent = sent_record is not None
+    if is_sent:
+        record = sent_record
+
+    if record is None:
+        subject, body = email_service.render(report)
+        record = EmailRecord(
+            chantier=chantier,
+            template_used=email_service.select_template(report),
+            recipient_email=chantier.maitre_ouvrage_email,
+            subject=subject,
+            body=body,
+        )
+        if isinstance(report, ControlReport):
+            record.control_report = report
+        else:
+            record.corrective_measure_report = report
+        record.save()
+        record.selected_photos.set(report.photos.filter(status=PhotoStatus.DONE))
+
+    if request.method == "POST" and not is_sent:
+        posted_satac = request.POST.get("satac_number")
+        if posted_satac and str(posted_satac) != str(chantier.satac_number):
+            raise PermissionDenied("Le courriel soumis ne correspond pas au dossier.")
+
+        action = request.POST.get("action", "save")
+        if action == "reset":
+            subject, body = email_service.render(report)
+            record.subject, record.body = subject, body
+            record.template_used = email_service.select_template(report)
+            record.save()
+            messages.info(request, "Texte réinitialisé depuis le modèle.")
+            return redirect("sene_chantiers:email_manager", kind=kind, pk=pk)
+
+        form = EmailRecordForm(request.POST, instance=record)
+        if form.is_valid():
+            record = form.save()
+            chosen = request.POST.getlist("photos")
+            record.selected_photos.set(
+                report.photos.filter(pk__in=chosen, status=PhotoStatus.DONE)
+            )
+            if action == "send":
+                try:
+                    email_service.send(record)
+                except Exception as exc:  # SMTP is outside our control
+                    messages.error(request, f"Échec de l'envoi : {exc}")
+                    return redirect(
+                        "sene_chantiers:email_manager", kind=kind, pk=pk
+                    )
+                messages.success(
+                    request,
+                    "Courriel envoyé. Le rapport est désormais en lecture seule.",
+                )
+                return redirect(
+                    "sene_chantiers:chantier_landing",
+                    satac_number=chantier.satac_number,
+                )
+            messages.info(request, "Brouillon enregistré.")
+            return redirect("sene_chantiers:email_manager", kind=kind, pk=pk)
+    else:
+        form = EmailRecordForm(instance=record)
+
+    return render(
+        request,
+        "sene_chantiers/email_manager.html",
+        {
+            "chantier": chantier,
+            "report": report,
+            "record": record,
+            "form": form,
+            "kind": kind,
+            "is_sent": is_sent,
+            "budget": email_service.attachment_budget(record),
+            "available_photos": report.photos.filter(status=PhotoStatus.DONE),
+            "selected_ids": set(
+                record.selected_photos.values_list("pk", flat=True)
+            ),
+            "template_label": EmailTemplate(record.template_used).label,
+        },
     )

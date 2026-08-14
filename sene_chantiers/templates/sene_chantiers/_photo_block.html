@@ -31,7 +31,8 @@
                 data-status="{{ photo.status }}">
           <div class="sc-photo-frame">
             {% if photo.image %}
-              <img src="{{ photo.image.url }}" alt="Photo du contrôle">
+              <img src="{% url 'sene_chantiers:photo_file' pk=photo.pk %}"
+                   alt="Photo du contrôle">
             {% else %}
               <div class="sc-photo-pending">
                 <div class="spinner-border spinner-border-sm" role="status"></div>

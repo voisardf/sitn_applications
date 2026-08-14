@@ -48,6 +48,12 @@ urlpatterns = [
         views.photo_status,
         name="photo_status",
     ),
+    path(
+        "rapport/<str:kind>/<int:pk>/courriel/",
+        views.email_manager,
+        name="email_manager",
+    ),
+    path("photos/<int:pk>/fichier/", views.photo_file, name="photo_file"),
     path("photos/<int:pk>/remarques/", views.photo_caption, name="photo_caption"),
     path("photos/<int:pk>/supprimer/", views.photo_delete, name="photo_delete"),
 ]
