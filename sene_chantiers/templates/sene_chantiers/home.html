@@ -1,0 +1,123 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-9">
+
+    <section class="sc-section">
+      <header>Rechercher un chantier</header>
+      <div class="sc-section-body">
+        <label for="satac-search" class="form-label">
+          N° SATAC du chantier
+        </label>
+        <div class="position-relative">
+          <input type="search" id="satac-search" class="form-control form-control-lg"
+                 placeholder="Saisir un numéro SATAC, par exemple 123101"
+                 autocomplete="off" inputmode="numeric">
+          <div id="satac-results" class="sc-search-results d-none"></div>
+        </div>
+        <div class="form-text">
+          Sélectionner un résultat pour ouvrir le dossier ou en créer un nouveau.
+        </div>
+      </div>
+    </section>
+
+    <section class="sc-section">
+      <header>Derniers dossiers modifiés</header>
+      <div class="sc-section-body p-0">
+        {% if recent_dossiers %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">N° SATAC</th>
+                  <th scope="col">Nom / description</th>
+                  <th scope="col">Commune</th>
+                  <th scope="col">Maître d'ouvrage</th>
+                  <th scope="col">Entreprise générale</th>
+                  <th scope="col">Date création</th>
+                  <th scope="col" class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for dossier in recent_dossiers %}
+                  <tr>
+                    <td>
+                      <span class="sc-pill sc-pill--{{ dossier.appreciation|default:'vert' }}"
+                            title="{{ dossier.appreciation_label }}">
+                        {{ dossier.satac_number }}
+                      </span>
+                    </td>
+                    <td>{{ dossier.site_name }}</td>
+                    <td>{{ dossier.commune.comnom }}</td>
+                    <td>{{ dossier.maitre_ouvrage }}</td>
+                    <td>{{ dossier.entreprise_generale|default:"—" }}</td>
+                    <td>{{ dossier.created_at|date:"d.m.Y" }}</td>
+                    <td class="text-end">
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="Disponible à la prochaine étape">
+                        <i class="bi bi-eye"></i>
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0 p-3">
+            Aucun dossier enregistré pour l'instant. Utiliser la recherche
+            ci-dessus pour en ouvrir un premier.
+          </p>
+        {% endif %}
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById('satac-search');
+  const panel = document.getElementById('satac-results');
+  let timer = null;
+
+  function hide() { panel.classList.add('d-none'); panel.innerHTML = ''; }
+
+  function render(results) {
+    if (!results.length) {
+      panel.innerHTML = '<div class="p-2 text-muted">Aucun résultat</div>';
+    } else {
+      panel.innerHTML = results.map(r =>
+        `<button type="button" data-satac="${r.satac_number}">
+           <strong>${r.satac_number}</strong>
+           <span class="text-muted ms-2">${
+             r.has_dossier ? 'dossier existant' : 'nouveau dossier'
+           }</span>
+         </button>`
+      ).join('');
+    }
+    panel.classList.remove('d-none');
+  }
+
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    const term = input.value.trim();
+    if (term.length < 2) { hide(); return; }
+    // Debounced so a typed number does not fire one request per keystroke.
+    timer = setTimeout(function () {
+      fetch(`{% url 'sene_chantiers:satac_lookup' %}?query=${encodeURIComponent(term)}`)
+        .then(r => r.json())
+        .then(data => render(data.results))
+        .catch(hide);
+    }, 250);
+  });
+
+  document.addEventListener('click', function (event) {
+    if (!panel.contains(event.target) && event.target !== input) hide();
+  });
+})();
+</script>
+{% endblock %}

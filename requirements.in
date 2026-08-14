@@ -20,3 +20,5 @@ whitenoise
 openpyxl
 requests
 pystac
+pillow
+django-simple-history

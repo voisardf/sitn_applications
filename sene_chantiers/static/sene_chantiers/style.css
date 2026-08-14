@@ -1,0 +1,126 @@
+/* sene_chantiers — visual language taken from the A4 report mockups:
+   the Vert/Jaune/Rouge traffic-light system and the boxed sections. */
+
+:root {
+  --sc-vert: #2e7d32;
+  --sc-vert-bg: #e8f5e9;
+  --sc-jaune: #f9a825;
+  --sc-jaune-bg: #fff8e1;
+  --sc-rouge: #c62828;
+  --sc-rouge-bg: #ffebee;
+  --sc-border: #d5d9de;
+}
+
+header .entete {
+  background-color: #009036;
+  color: #fff;
+  padding: 0.75rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+header .entete .home {
+  color: #fff;
+}
+
+header .drapeau {
+  background-color: #009036;
+  padding: 0.35rem 1rem;
+}
+
+header .drapeau img {
+  max-height: 44px;
+}
+
+.sc-footer {
+  border-top: 1px solid var(--sc-border);
+  margin-top: 2rem;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+/* --- Appreciation pills (Vert / Jaune / Rouge) --------------------- */
+
+.sc-pill {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.sc-pill--vert {
+  background: var(--sc-vert-bg);
+  color: var(--sc-vert);
+  border-color: var(--sc-vert);
+}
+
+.sc-pill--jaune {
+  background: var(--sc-jaune-bg);
+  color: #8a6100;
+  border-color: var(--sc-jaune);
+}
+
+.sc-pill--rouge {
+  background: var(--sc-rouge-bg);
+  color: var(--sc-rouge);
+  border-color: var(--sc-rouge);
+}
+
+/* --- Section frames, mirroring the paper form --------------------- */
+
+.sc-section {
+  border: 1px solid var(--sc-border);
+  border-radius: 0.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.sc-section > header {
+  background: #f5f7f9;
+  border-bottom: 1px solid var(--sc-border);
+  padding: 0.5rem 0.9rem;
+  font-weight: 600;
+}
+
+.sc-section > .sc-section-body {
+  padding: 0.9rem;
+}
+
+/* --- Search block on the home page -------------------------------- */
+
+.sc-search-results {
+  position: absolute;
+  z-index: 1000;
+  width: 100%;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--sc-border);
+  border-radius: 0 0 0.4rem 0.4rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sc-search-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 0.5rem 0.9rem;
+}
+
+.sc-search-results button:hover,
+.sc-search-results button:focus {
+  background: #eef4ff;
+}
+
+/* Tablet is the priority input target: keep tap targets comfortable. */
+@media (max-width: 992px) {
+  .form-control,
+  .form-select,
+  .btn {
+    min-height: 2.75rem;
+  }
+}
