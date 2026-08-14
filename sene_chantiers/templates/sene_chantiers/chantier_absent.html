@@ -1,0 +1,61 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Nouveau dossier — {{ satac_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-8">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:home' %}" class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour à l'accueil
+      </a>
+    </nav>
+
+    <section class="sc-section">
+      <header>Aucun dossier pour le n° SATAC {{ satac_number }}</header>
+      <div class="sc-section-body">
+
+        {% if satac_result %}
+          <p>
+            Cette autorisation de construire existe. Vérifier qu'il s'agit
+            du bon chantier avant d'ouvrir un dossier de suivi.
+          </p>
+          <dl class="row">
+            <dt class="col-sm-3">N° SATAC</dt>
+            <dd class="col-sm-9">{{ satac_result.satac_number }}</dd>
+            {% if satac_result.commune_name %}
+              <dt class="col-sm-3">Commune</dt>
+              <dd class="col-sm-9">{{ satac_result.commune_name }}</dd>
+            {% endif %}
+            {% if satac_result.geom %}
+              <dt class="col-sm-3">Localisation</dt>
+              <dd class="col-sm-9">
+                {{ satac_result.geom.x|floatformat:0 }},
+                {{ satac_result.geom.y|floatformat:0 }}
+                <span class="text-muted">(MN95)</span>
+              </dd>
+            {% endif %}
+          </dl>
+          {% for warning in satac_result.warnings %}
+            <div class="alert alert-warning py-2">{{ warning }}</div>
+          {% endfor %}
+        {% else %}
+          <div class="alert alert-warning">
+            Aucune autorisation de construire ne correspond à ce numéro SATAC.
+            Un dossier peut tout de même être ouvert, en saisissant
+            manuellement les informations du chantier.
+          </div>
+        {% endif %}
+
+        <a href="{% url 'sene_chantiers:chantier_create' satac_number=satac_number %}"
+           class="btn btn-primary">
+          <i class="bi bi-plus-lg"></i> Ouvrir un dossier de suivi
+        </a>
+
+      </div>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

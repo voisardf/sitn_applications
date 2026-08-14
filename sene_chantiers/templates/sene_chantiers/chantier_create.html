@@ -1,0 +1,76 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Nouveau dossier — {{ satac_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-8">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:chantier_landing' satac_number=satac_number %}"
+         class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour
+      </a>
+    </nav>
+
+    <h2 class="mb-3">Ouvrir un dossier de suivi</h2>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <section class="sc-section">
+        <header>Informations générales</header>
+        <div class="sc-section-body">
+
+          <div class="mb-3">
+            <label class="form-label">N° SATAC</label>
+            <input type="text" class="form-control" value="{{ satac_number }}"
+                   disabled aria-describedby="satac-help">
+            <div id="satac-help" class="form-text">
+              Repris du contrôle des autorisations de construire, non modifiable.
+            </div>
+          </div>
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {% for field in form %}
+            <div class="mb-3">
+              <label for="{{ field.id_for_label }}" class="form-label">
+                {{ field.label }}
+                {% if field.field.required %}
+                  <span class="text-danger" aria-hidden="true">*</span>
+                {% else %}
+                  <span class="text-muted small">(facultatif)</span>
+                {% endif %}
+              </label>
+              {{ field }}
+              {% if field.name == 'commune' and satac_result.commune %}
+                <div class="form-text">
+                  Pré-renseignée depuis l'autorisation de construire.
+                </div>
+              {% endif %}
+              {% for error in field.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+
+        </div>
+      </section>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-check-lg"></i> Créer le dossier
+        </button>
+        <a href="{% url 'sene_chantiers:home' %}" class="btn btn-outline-secondary">
+          Annuler
+        </a>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+{% endblock %}

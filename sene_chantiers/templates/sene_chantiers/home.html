@@ -54,10 +54,11 @@
                     <td>{{ dossier.entreprise_generale|default:"—" }}</td>
                     <td>{{ dossier.created_at|date:"d.m.Y" }}</td>
                     <td class="text-end">
-                      <span class="btn btn-sm btn-outline-secondary disabled"
-                            title="Disponible à la prochaine étape">
+                      <a class="btn btn-sm btn-outline-secondary"
+                         href="{% url 'sene_chantiers:chantier_landing' satac_number=dossier.satac_number %}"
+                         title="Ouvrir le dossier">
                         <i class="bi bi-eye"></i>
-                      </span>
+                      </a>
                     </td>
                   </tr>
                 {% endfor %}
@@ -86,17 +87,22 @@
 
   function hide() { panel.classList.add('d-none'); panel.innerHTML = ''; }
 
+  // Both states lead to the same landing route, which decides whether to
+  // show the dossier or the "open a dossier" action.
+  const landingBase = "{% url 'sene_chantiers:chantier_landing' satac_number=0 %}";
+  function landingUrl(satac) { return landingBase.replace(/0\/$/, satac + '/'); }
+
   function render(results) {
     if (!results.length) {
       panel.innerHTML = '<div class="p-2 text-muted">Aucun résultat</div>';
     } else {
       panel.innerHTML = results.map(r =>
-        `<button type="button" data-satac="${r.satac_number}">
+        `<a href="${landingUrl(r.satac_number)}" class="d-block text-decoration-none text-body px-3 py-2">
            <strong>${r.satac_number}</strong>
            <span class="text-muted ms-2">${
              r.has_dossier ? 'dossier existant' : 'nouveau dossier'
            }</span>
-         </button>`
+         </a>`
       ).join('');
     }
     panel.classList.remove('d-none');

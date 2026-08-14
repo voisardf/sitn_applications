@@ -4,23 +4,22 @@ Every view is gated on SSO authentication plus membership of the
 sene_chantiers_admin group.
 """
 
+from django.contrib import messages
 from django.db.models import Max
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .auth import sene_chantiers_admin_required
-from .models import Appreciation, Chantier
+from .forms import ChantierForm
+from .labels import (
+    appreciation_label,
+    email_status_appreciation,
+    email_status_label,
+)
+from .models import Chantier, EmailStatus
 from .services import satac
 
 RECENT_DOSSIERS_LIMIT = 5
-
-# The landing list shows one pill per dossier; the wording matches the
-# Courriels column of the mockups.
-APPRECIATION_LABELS = {
-    Appreciation.VERT: "Conforme",
-    Appreciation.JAUNE: "Mesures à prendre",
-    Appreciation.ROUGE: "Non conforme",
-}
 
 
 def _latest_appreciation(chantier):
@@ -37,8 +36,61 @@ def _latest_appreciation(chantier):
 def _decorate(chantier):
     appreciation = _latest_appreciation(chantier)
     chantier.appreciation = appreciation
-    chantier.appreciation_label = APPRECIATION_LABELS.get(appreciation, "Sans rapport")
+    chantier.appreciation_label = appreciation_label(appreciation)
     return chantier
+
+
+def _dossier_reports(chantier):
+    """The dossier's reports, initial first then follow-ups by date."""
+    rows = []
+    control_report = getattr(chantier, "control_report", None)
+    if control_report:
+        rows.append(
+            {
+                "kind": "control",
+                "pk": control_report.pk,
+                "label": "Contrôle environnemental",
+                "date": control_report.control_date,
+                "appreciation": control_report.global_appreciation,
+                "appreciation_label": appreciation_label(
+                    control_report.global_appreciation
+                ),
+                "is_locked": control_report.is_locked,
+            }
+        )
+    for index, followup in enumerate(
+        chantier.corrective_measure_reports.order_by("follow_up_date"), start=1
+    ):
+        rows.append(
+            {
+                "kind": "followup",
+                "pk": followup.pk,
+                "label": f"Suivi des mesures correctives {index}",
+                "date": followup.follow_up_date,
+                "appreciation": followup.global_appreciation,
+                "appreciation_label": appreciation_label(
+                    followup.global_appreciation
+                ),
+                "is_locked": followup.is_locked,
+            }
+        )
+    return rows
+
+
+def _dossier_emails(chantier):
+    rows = []
+    for record in chantier.email_records.all():
+        rows.append(
+            {
+                "pk": record.pk,
+                "date": record.display_date,
+                "status_label": email_status_label(record.template_used),
+                "appreciation": email_status_appreciation(record.template_used),
+                "subject": record.subject,
+                "is_sent": record.status == EmailStatus.SENT,
+            }
+        )
+    return rows
 
 
 @sene_chantiers_admin_required
@@ -46,10 +98,7 @@ def home(request):
     """Search block plus the most recently modified dossiers."""
     recent = (
         Chantier.objects.select_related("commune")
-        .annotate(
-            last_touched=Max("control_report__updated_at"),
-            last_followup=Max("corrective_measure_reports__updated_at"),
-        )
+        .annotate(last_touched=Max("corrective_measure_reports__updated_at"))
         .order_by("-created_at")[:RECENT_DOSSIERS_LIMIT]
     )
     return render(
@@ -80,4 +129,75 @@ def satac_lookup(request):
                 for r in results
             ]
         }
+    )
+
+
+@sene_chantiers_admin_required
+def chantier_landing(request, satac_number):
+    """Récapitulatif for one SATAC number.
+
+    Renders either the "open a dossier" state or the dossier's reports and
+    emails, depending on whether the dossier already exists. This is also
+    the route the geoportal links to with a SATAC number.
+    """
+    chantier = (
+        Chantier.objects.select_related("commune")
+        .filter(satac_number=satac_number)
+        .first()
+    )
+
+    if chantier is None:
+        # Show what the permit lookup knows, so the inspector can confirm
+        # they are opening a dossier for the right site.
+        return render(
+            request,
+            "sene_chantiers/chantier_absent.html",
+            {
+                "satac_number": satac_number,
+                "satac_result": satac.resolve(satac_number),
+            },
+        )
+
+    return render(
+        request,
+        "sene_chantiers/chantier_landing.html",
+        {
+            "chantier": _decorate(chantier),
+            "reports": _dossier_reports(chantier),
+            "emails": _dossier_emails(chantier),
+        },
+    )
+
+
+@sene_chantiers_admin_required
+def chantier_create(request, satac_number):
+    """Open a dossier for a SATAC number that does not have one yet."""
+    existing = Chantier.objects.filter(satac_number=satac_number).first()
+    if existing:
+        messages.info(request, "Un dossier existe déjà pour ce numéro SATAC.")
+        return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
+
+    result = satac.resolve(satac_number)
+
+    if request.method == "POST":
+        form = ChantierForm(request.POST, satac_result=result)
+        if form.is_valid():
+            chantier = form.save(commit=False)
+            chantier.satac_number = satac_number
+            # Geometry is only ever taken from the permit lookup; it drives
+            # the nearest-weather-station suggestion and nothing else.
+            if result and result.geom is not None:
+                chantier.geom = result.geom
+            chantier.save()
+            messages.success(request, "Dossier créé.")
+            return redirect(
+                "sene_chantiers:chantier_landing", satac_number=satac_number
+            )
+    else:
+        form = ChantierForm(satac_result=result)
+
+    return render(
+        request,
+        "sene_chantiers/chantier_create.html",
+        {"form": form, "satac_number": satac_number, "satac_result": result},
     )

@@ -1,0 +1,157 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Suivi de chantier — {{ chantier.satac_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:home' %}" class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour à l'accueil
+      </a>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <h2 class="mb-0">{{ chantier.site_name }}</h2>
+      <span class="sc-pill sc-pill--{{ chantier.appreciation|default:'vert' }}">
+        {{ chantier.appreciation_label }}
+      </span>
+    </div>
+
+    <section class="sc-section">
+      <header>Informations générales</header>
+      <div class="sc-section-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-3">N° SATAC</dt>
+          <dd class="col-sm-9">{{ chantier.satac_number }}</dd>
+
+          <dt class="col-sm-3">Adresse</dt>
+          <dd class="col-sm-9">{{ chantier.adresse }}</dd>
+
+          <dt class="col-sm-3">Commune</dt>
+          <dd class="col-sm-9">{{ chantier.commune.comnom }}</dd>
+
+          <dt class="col-sm-3">Maître d'ouvrage</dt>
+          <dd class="col-sm-9">
+            {{ chantier.maitre_ouvrage }}
+            <span class="text-muted">&lt;{{ chantier.maitre_ouvrage_email }}&gt;</span>
+          </dd>
+
+          <dt class="col-sm-3">Entreprise générale</dt>
+          <dd class="col-sm-9">{{ chantier.entreprise_generale|default:"—" }}</dd>
+
+          <dt class="col-sm-3">Date de création</dt>
+          <dd class="col-sm-9 mb-0">{{ chantier.created_at|date:"d.m.Y" }}</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="sc-section">
+      <header class="d-flex justify-content-between align-items-center">
+        <span>01 &nbsp; Historique des rapports</span>
+        {% if reports %}
+          <button type="button" class="btn btn-sm btn-primary disabled"
+                  title="Disponible à l'étape suivante">
+            <i class="bi bi-plus-lg"></i> Nouveau suivi (mesures correctives)
+          </button>
+        {% else %}
+          <button type="button" class="btn btn-sm btn-primary disabled"
+                  title="Disponible à l'étape suivante">
+            <i class="bi bi-plus-lg"></i> Nouveau contrôle environnemental
+          </button>
+        {% endif %}
+      </header>
+      <div class="sc-section-body p-0">
+        {% if reports %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Rapport</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Appréciation</th>
+                  <th scope="col" class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in reports %}
+                  <tr>
+                    <td>{{ report.label }}</td>
+                    <td>{{ report.date|date:"d.m.Y" }}</td>
+                    <td>
+                      <span class="sc-pill sc-pill--{{ report.appreciation }}">
+                        {{ report.appreciation_label }}
+                      </span>
+                    </td>
+                    <td class="text-end text-nowrap">
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="{% if report.is_locked %}Consulter{% else %}Modifier{% endif %} — étape suivante">
+                        <i class="bi {% if report.is_locked %}bi-eye{% else %}bi-pencil{% endif %}"></i>
+                      </span>
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="Export Excel — étape à venir">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                      </span>
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="Export PDF — étape à venir">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                      </span>
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="Courriel — étape à venir">
+                        <i class="bi bi-envelope"></i>
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0 p-3">Aucun rapport pour ce chantier.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if emails %}
+      <section class="sc-section">
+        <header>02 &nbsp; Courriels</header>
+        <div class="sc-section-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Date courriel</th>
+                  <th scope="col">Statut</th>
+                  <th scope="col">Objet</th>
+                  <th scope="col" class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for email in emails %}
+                  <tr>
+                    <td>{{ email.date|date:"d.m.Y" }}</td>
+                    <td>
+                      <span class="sc-pill sc-pill--{{ email.appreciation }}">
+                        {{ email.status_label }}
+                      </span>
+                    </td>
+                    <td>{{ email.subject }}</td>
+                    <td class="text-end">
+                      <span class="btn btn-sm btn-outline-secondary disabled"
+                            title="{% if email.is_sent %}Consulter{% else %}Modifier le brouillon{% endif %} — étape à venir">
+                        <i class="bi {% if email.is_sent %}bi-eye{% else %}bi-pencil{% endif %}"></i>
+                      </span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
