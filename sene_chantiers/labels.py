@@ -1,22 +1,17 @@
 """Display labels for the traffic-light states.
 
 Two vocabularies deliberately coexist, as drawn in the mockups: the
-dossier/report pill describes the state of the site, while the Courriels
-column describes what the email asks the recipient to do.
+dossier and report pills describe the finding, while the Courriels column
+describes what the email asks the recipient to do. The first comes
+straight from the Appreciation choices; only the second needs a mapping.
 """
 
 from django.utils.translation import gettext_lazy as _
 
 from .models import Appreciation, EmailTemplate
 
-# Dossier and report level — describes the finding.
-APPRECIATION_LABELS = {
-    Appreciation.VERT: _("Conforme"),
-    Appreciation.JAUNE: _("Écarts mineurs"),
-    Appreciation.ROUGE: _("Non conforme"),
-}
-
-# Courriels list — describes the action requested.
+# Courriels list — describes the action requested, so "Jaune" reads as
+# "Mesures à prendre" here rather than "Écarts mineurs".
 EMAIL_TEMPLATE_LABELS = {
     EmailTemplate.CONFORME: _("Conforme"),
     EmailTemplate.NON_CONFORMITES: _("Mesures à prendre"),
@@ -34,7 +29,10 @@ EMAIL_TEMPLATE_APPRECIATION = {
 
 
 def appreciation_label(value):
-    return APPRECIATION_LABELS.get(value, _("Sans rapport"))
+    """Label of an appreciation, or a placeholder when there is no report."""
+    if not value:
+        return _("Sans rapport")
+    return Appreciation(value).label
 
 
 def email_status_label(template_used):

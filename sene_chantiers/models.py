@@ -36,9 +36,17 @@ from cadastre.models import Commune
 
 SCHEMA = 'sene_chantiers"."'
 
-# /upload is writable by the web container (MEDIA_ROOT); /data is mounted
-# read-only there and written only by the photo worker container.
-sanitized_photo_storage = FileSystemStorage(location=settings.DOWNLOAD_ROOT)
+def sanitized_photo_storage():
+    """Storage for the clean copies, under DOWNLOAD_ROOT.
+
+    A callable rather than an instance: Django serialises the reference
+    into migrations instead of the resolved path, which differs per
+    environment (/data in Docker, a local folder for runserver).
+
+    /upload is writable by the web container; /data is mounted read-only
+    there and written only by the photo worker container.
+    """
+    return FileSystemStorage(location=settings.DOWNLOAD_ROOT)
 
 ALLOWED_PHOTO_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "heic"]
 
@@ -66,9 +74,13 @@ def validate_photo_size(value):
 
 
 class Appreciation(models.TextChoices):
-    VERT = "vert", _("Vert")
-    JAUNE = "jaune", _("Jaune")
-    ROUGE = "rouge", _("Rouge")
+    """The traffic light. Stored values stay the colour names because the
+    cascades and the CSS modifiers key off them; the labels are what the
+    inspector actually reads."""
+
+    VERT = "vert", _("Conforme")
+    JAUNE = "jaune", _("Écarts mineurs")
+    ROUGE = "rouge", _("Non conforme")
 
 
 class MeasureStatus(models.TextChoices):

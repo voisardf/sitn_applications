@@ -112,11 +112,9 @@ def seed(apps, schema_editor):
     )
 
 
-def unseed(apps, schema_editor):
-    for model in ("ControlPoint", "Theme", "WeatherCondition", "ConstructionPhase"):
-        apps.get_model("sene_chantiers", model).objects.all().delete()
-
-
 class Migration(migrations.Migration):
     dependencies = [("sene_chantiers", "0001_initial")]
-    operations = [migrations.RunPython(seed, unseed)]
+    # No reverse: reports reference these rows with PROTECT, so deleting
+    # them would either fail or require destroying report data. Reversing
+    # 0001 drops the tables outright, which is the real undo.
+    operations = [migrations.RunPython(seed, migrations.RunPython.noop)]
