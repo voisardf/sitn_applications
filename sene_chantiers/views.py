@@ -10,7 +10,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Max
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -53,6 +53,8 @@ from .models import (
 )
 from .services import appreciation as appreciation_service
 from .services import emails as email_service
+from .services import excel as excel_service
+from .services import pdf as pdf_service
 from .services import satac
 
 RECENT_DOSSIERS_LIMIT = 5
@@ -770,3 +772,41 @@ def email_manager(request, kind, pk):
             "template_label": EmailTemplate(record.template_used).label,
         },
     )
+
+
+@sene_chantiers_admin_required
+def pdf_export(request, kind, pk):
+    """Render one report through the WeasyPrint service and stream it."""
+    report = _report_from_kind(kind, pk)
+    try:
+        content = pdf_service.report_pdf(report)
+    except pdf_service.PdfServiceError as exc:
+        messages.error(request, str(exc))
+        return redirect(
+            "sene_chantiers:chantier_landing",
+            satac_number=report.chantier.satac_number,
+        )
+
+    prefix = "controle" if kind == "controle" else "suivi"
+    filename = f"rapport_{prefix}_{report.chantier.satac_number}.pdf"
+    response = HttpResponse(content, content_type="application/pdf")
+    # Inline: the spec asks for the PDF to open in a new tab.
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+@sene_chantiers_admin_required
+def excel_export(request, satac_number):
+    """Whole-dossier workbook, generated per request and never stored."""
+    chantier = get_object_or_404(Chantier, satac_number=satac_number)
+    content = excel_service.dossier_workbook(chantier)
+    response = HttpResponse(
+        content,
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="dossier_{satac_number}.xlsx"'
+    )
+    return response

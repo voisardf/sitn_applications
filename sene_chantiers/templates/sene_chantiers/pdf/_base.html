@@ -1,0 +1,104 @@
+{# Print stylesheet shared by both report PDFs. Self-contained: the
+   service fetches nothing, so everything is inlined. #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{% endblock %}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 16mm 14mm 20mm 14mm;
+    @bottom-center {
+      content: "Page " counter(page) " / " counter(pages);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 8pt;
+      color: #6b7280;
+    }
+  }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9pt;
+    color: #1f2937;
+    margin: 0;
+  }
+  h1 { font-size: 15pt; margin: 0 0 2mm; color: #1c2b4a; }
+  .subtitle { font-size: 9pt; color: #6b7280; margin: 0 0 5mm; }
+
+  /* Sections must not be split mid-table, mid-photo or mid-list. */
+  .section { break-inside: avoid; margin-bottom: 5mm; }
+  table { break-inside: avoid; }
+  tr, .photo, li { break-inside: avoid; }
+
+  .section > h2 {
+    font-size: 9.5pt;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color: #1c2b4a;
+    border-bottom: 1px solid #e2e6ec;
+    padding-bottom: 1.5mm;
+    margin: 0 0 2.5mm;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; font-size: 7.5pt; text-transform: uppercase;
+    color: #6b7280; border-bottom: 1px solid #e2e6ec; padding: 1.5mm 2mm;
+    background: #f7f8fa;
+  }
+  td { padding: 1.8mm 2mm; border-bottom: 1px solid #eef1f5; vertical-align: top; }
+  .meta { width: 100%; }
+  .meta td { border: 0; padding: 1mm 2mm 1mm 0; }
+  .meta .label { color: #6b7280; font-size: 7.5pt; text-transform: uppercase; width: 32%; }
+  .pill {
+    display: inline-block; padding: 0.6mm 2.5mm; border-radius: 6pt;
+    font-size: 8pt; font-weight: bold; border: 1px solid;
+  }
+  .pill.vert  { background: #e9f5ec; color: #1f6b34; border-color: #2e8b45; }
+  .pill.jaune { background: #fdf4e1; color: #8a6100; border-color: #e2a222; }
+  .pill.rouge { background: #fdeaea; color: #d32f2f; border-color: #d32f2f; }
+  .footer-block {
+    margin-top: 6mm; border-top: 1px solid #e2e6ec; padding-top: 2.5mm;
+    font-size: 7.5pt; color: #6b7280; break-inside: avoid;
+  }
+  .legend { font-size: 7.5pt; color: #6b7280; margin-top: 2mm; }
+  .photo-grid { width: 100%; }
+  .photo-grid td { width: 33%; border: 0; padding: 2mm; }
+  .photo-grid img { width: 100%; border: 1px solid #e2e6ec; }
+  .caption { font-style: italic; font-size: 7.5pt; color: #6b7280; }
+  .obs { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>{% block heading %}{% endblock %}</h1>
+<p class="subtitle">
+  N° SATAC {{ chantier.satac_number }} &nbsp;·&nbsp; {{ chantier.site_name }}
+  &nbsp;·&nbsp; {{ chantier.commune.comnom }}
+</p>
+
+{% block content %}{% endblock %}
+
+<div class="footer-block">
+  <table class="meta">
+    <tr>
+      <td>
+        <strong>Inspecteur SENE :</strong>
+        {{ report.inspector.get_full_name|default:report.inspector.username }}
+        {% if report.signature_date %}
+          &nbsp;·&nbsp; Signé le {{ report.signature_date|date:"d.m.Y" }}
+        {% endif %}
+      </td>
+      <td style="text-align:right">www.ne.ch/sene</td>
+    </tr>
+  </table>
+  Service de l'environnement et de l'énergie (SENE) – Rue du Tombet 24 – 2034 Peseux
+  <div class="legend">
+    <strong>Système d'appréciation :</strong>
+    Conforme — exigences respectées ·
+    Écarts mineurs — un point non conforme ·
+    Non conforme — plusieurs points non conformes.
+  </div>
+</div>
+
+</body>
+</html>

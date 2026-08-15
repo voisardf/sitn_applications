@@ -53,6 +53,16 @@ urlpatterns = [
         views.email_manager,
         name="email_manager",
     ),
+    path(
+        "rapport/<str:kind>/<int:pk>/pdf/",
+        views.pdf_export,
+        name="pdf_export",
+    ),
+    path(
+        "chantier/<int:satac_number>/excel/",
+        views.excel_export,
+        name="excel_export",
+    ),
     path("photos/<int:pk>/fichier/", views.photo_file, name="photo_file"),
     path("photos/<int:pk>/remarques/", views.photo_caption, name="photo_caption"),
     path("photos/<int:pk>/supprimer/", views.photo_delete, name="photo_delete"),

@@ -122,14 +122,16 @@
                           <i class="bi {% if report.is_locked %}bi-eye{% else %}bi-pencil{% endif %}"></i>
                         </a>
                       {% endif %}
-                      <span class="btn sc-icon-btn is-excel disabled"
-                            title="Export Excel — étape à venir">
+                      <a class="btn sc-icon-btn is-excel"
+                         href="{% url 'sene_chantiers:excel_export' satac_number=chantier.satac_number %}"
+                         title="Export Excel du dossier">
                         <i class="bi bi-file-earmark-spreadsheet"></i>
-                      </span>
-                      <span class="btn sc-icon-btn is-pdf disabled"
-                            title="Export PDF — étape à venir">
+                      </a>
+                      <a class="btn sc-icon-btn is-pdf" target="_blank"
+                         href="{% url 'sene_chantiers:pdf_export' kind=report.kind_slug pk=report.pk %}"
+                         title="Export PDF du rapport">
                         <i class="bi bi-file-earmark-pdf"></i>
-                      </span>
+                      </a>
                       <a class="btn sc-icon-btn is-mail"
                          href="{% url 'sene_chantiers:email_manager' kind=report.kind_slug pk=report.pk %}"
                          title="Courriel d'information">
