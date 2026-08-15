@@ -16,7 +16,7 @@
 :root {
   --navy: #1c2b4a;
   --navy-light: #2a3f66;
-  --bg: #eef1f5;
+  --bg: #EFF8F6;  /* fond du panneau de navigation de ppe */
   --card: #ffffff;
   --border: #e2e6ec;
   --text: #1f2937;
@@ -49,7 +49,6 @@ body {
 header {
   width: 100%;
   height: 85px;
-  font-size: clamp(20px, 5vw, 48px);
   font-weight: bold;
   color: white;
   text-align: left;
@@ -59,18 +58,42 @@ header {
   display: flex;
   align-items: center;
   padding: 0 1rem;
+  overflow: hidden;
+}
+
+/* Chaque colonne reste centrée verticalement dans la bande. */
+header > [class*="col-"] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.entete {
+  justify-content: center;
 }
 
 .home {
-  text-align: center !important;
   color: white !important;
   text-decoration: none !important;
+  /* Borné pour tenir sur une seule ligne : le titre est plus long que
+     celui de ppe et partage la bande avec la pastille utilisateur. */
+  font-size: clamp(15px, 2.1vw, 30px);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .drapeau {
-  float: right;
   font-size: 9px;
   text-align: center;
+  justify-content: flex-end;
+}
+
+.drapeau img {
+  max-height: 56px;
+  max-width: 100%;
+  width: auto;
 }
 
 
