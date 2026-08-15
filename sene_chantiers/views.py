@@ -204,6 +204,7 @@ def chantier_landing(request, satac_number):
             "chantier": _decorate(chantier),
             "reports": _dossier_reports(chantier),
             "emails": _dossier_emails(chantier),
+            "is_compliant": chantier.is_compliant,
             "is_closed": chantier.is_closed,
         },
     )
@@ -458,13 +459,16 @@ def corrective_measure_report_create(request, satac_number):
             request, "Le contrôle initial doit exister avant un suivi."
         )
         return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
-    if chantier.is_closed:
-        # The lifecycle ends on a compliant visit: only the notification
-        # email remains. Blocked here as well as hidden in the template.
+    if chantier.is_compliant:
+        # A compliant visit ends the cycle: only the notification email
+        # remains. If that conclusion was a mistake, the inspector corrects
+        # the report itself — which reopens the cycle — rather than opening
+        # another follow-up on top of it.
         messages.error(
             request,
             "Le dernier contrôle conclut à la conformité du chantier : "
-            "le dossier est clos et n'admet plus de suivi.",
+            "aucun nouveau suivi n'est possible. Corriger le dernier "
+            "rapport si ce constat est erroné.",
         )
         return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
     if request.method != "POST":

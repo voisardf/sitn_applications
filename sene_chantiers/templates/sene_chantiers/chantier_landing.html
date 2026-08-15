@@ -67,8 +67,14 @@
           <p class="mb-0">Historique des rapports</p>
         </div>
         {% if is_closed %}
-          <span class="sc-pill sc-pill--vert" title="Le dernier contrôle conclut à la conformité">
-            <i class="bi bi-check-circle"></i> Dossier clos — chantier conforme
+          <span class="sc-pill sc-pill--vert"
+                title="Chantier conforme et courriel envoyé : le dossier est clos">
+            <i class="bi bi-check-circle-fill"></i> Dossier clos
+          </span>
+        {% elif is_compliant %}
+          <span class="sc-pill sc-pill--vert"
+                title="Aucun nouveau suivi n'est possible. Le rapport reste modifiable tant que le courriel n'est pas envoyé.">
+            <i class="bi bi-check-circle"></i> Chantier conforme — courriel à envoyer
           </span>
         {% elif reports %}
           <form method="post"

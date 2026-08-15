@@ -329,18 +329,30 @@ class Chantier(models.Model):
         return latest or getattr(self, "control_report", None)
 
     @property
-    def is_closed(self):
-        """True once a visit has concluded that the site is compliant.
+    def is_compliant(self):
+        """The most recent concluded visit found the site compliant.
 
-        The lifecycle ends there: no further corrective-measures follow-up
-        can be opened, and the only remaining action is the notification
-        email that informs the maître d'ouvrage.
+        No further corrective-measures follow-up may be opened while this
+        holds. It is not yet a closure: the report stays editable until its
+        notification email goes out, so an inspector who marked a measure
+        compliant by mistake can correct it — which turns the appreciation
+        back and reopens the cycle.
 
-        A report that has not been filled in yet does not close anything:
-        its appreciation is still the field default, not a finding.
+        Requires an actual finding, not merely a Vert appreciation: a
+        freshly created report carries Vert as its field default and would
+        otherwise suspend the cycle before anything had been filled in.
         """
         report = self.latest_report
         return bool(report and report.closes_the_case and report.is_concluded)
+
+    @property
+    def is_closed(self):
+        """Compliant *and* communicated: the notification email is sent.
+
+        Sending locks the report, so from here nothing can reopen the
+        cycle — this is the definitive end of the dossier.
+        """
+        return self.is_compliant and self.latest_report.is_locked
 
 
 class BaseReport(models.Model):
