@@ -100,7 +100,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware'
+    'allauth.account.middleware.AccountMiddleware',
+    # Records who made each change on history-tracked models. Must come after
+    # AuthenticationMiddleware, since it reads request.user. Without it
+    # history rows written outside the admin carry a NULL history_user.
+    'simple_history.middleware.HistoryRequestMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [

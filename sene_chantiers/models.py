@@ -14,7 +14,10 @@ Cross-row rules, enforced at the view/formset layer, not here:
     reference, and on edit, clean() runs before the formset that actually
     adds/removes child rows is processed. All three must be validated in
     the view, where the parent form and its formset(s) are both in memory
-    and individually valid but not yet saved.
+    and individually valid but not yet saved. There is currently a single
+    edit view per report type (functional spec, §5) — if a second entry
+    point for editing these reports is ever added, these three checks
+    must travel with it.
 """
 
 from django.conf import settings
