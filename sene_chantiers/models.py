@@ -14,10 +14,11 @@ Cross-row rules, enforced at the view/formset layer, not here:
     reference, and on edit, clean() runs before the formset that actually
     adds/removes child rows is processed. All three must be validated in
     the view, where the parent form and its formset(s) are both in memory
-    and individually valid but not yet saved. There is currently a single
-    edit view per report type (functional spec, §5) — if a second entry
-    point for editing these reports is ever added, these three checks
-    must travel with it.
+    and individually valid but not yet saved. A second entry point now
+    exists — the superuser-only admin in `admin.py` — and the checks did
+    have to travel with it: two of the three are also database
+    constraints and came for free, the third is re-implemented there.
+    Any further entry point must do the same.
 """
 
 from django.conf import settings
@@ -352,10 +353,35 @@ class Chantier(models.Model):
     def is_closed(self):
         """Compliant *and* communicated: the notification email is sent.
 
-        Sending locks the report, so from here nothing can reopen the
-        cycle — this is the definitive end of the dossier.
+        Sending locks the report, so from here nothing in the application
+        can reopen the cycle — this is the end of the dossier. The one
+        exception is out-of-band: a superuser may repair the report
+        through the admin, unless the dossier has escalated towards a
+        denunciation. See `has_entered_denunciation_track`.
         """
         return self.is_compliant and self.latest_report.is_locked
+
+    @property
+    def has_entered_denunciation_track(self):
+        """The dossier has escalated towards the Ministère public.
+
+        True from the moment a visit is flagged as the last control before
+        denunciation — the *ultime délai* letter — and it stays true
+        afterwards, including on the mandatory final visit that carries a
+        `final_closure_state`.
+
+        This is deliberately the earliest signal rather than the strictest
+        one. The model has no "denunciation filed on <date>" field, so the
+        escalation flag is the only marker available before the final
+        visit is recorded, which is precisely the window in which the file
+        is being handed over and must not be altered. It therefore also
+        covers dossiers where the threat was made but no denunciation
+        followed; see `sene_chantiers.admin` for what it gates.
+        """
+        return self.corrective_measure_reports.filter(
+            Q(is_denunciation_escalation=True)
+            | Q(final_closure_state__isnull=False, final_closure_state__gt="")
+        ).exists()
 
 
 class BaseReport(models.Model):
