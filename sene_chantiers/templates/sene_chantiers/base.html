@@ -42,6 +42,23 @@
   </header>
 
   <main class="container-fluid py-4">
+    {% if sc_overdue_count or sc_due_soon_count %}
+      <a class="sc-deadline-banner{% if sc_overdue_count %} is-overdue{% endif %}"
+         href="{% url 'sene_chantiers:deadlines' %}">
+        <i class="bi bi-clock-history"></i>
+        {% if sc_overdue_count %}
+          <strong>{{ sc_overdue_count }}</strong>
+          mesure{{ sc_overdue_count|pluralize }} corrective{{ sc_overdue_count|pluralize }}
+          en retard{% if sc_due_soon_count %},{% endif %}
+        {% endif %}
+        {% if sc_due_soon_count %}
+          <strong>{{ sc_due_soon_count }}</strong>
+          à échéance dans les {{ sc_warning_days|default:2 }} jours
+        {% endif %}
+        <span class="sc-deadline-banner-cta">Voir les échéances &rsaquo;</span>
+      </a>
+    {% endif %}
+
     {% if messages %}
       {% for message in messages %}
         <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show"

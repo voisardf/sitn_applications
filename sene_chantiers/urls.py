@@ -7,6 +7,7 @@ app_name = "sene_chantiers"
 urlpatterns = [
     path("", views.home, name="home"),
     path("api/satac-lookup/", views.satac_lookup, name="satac_lookup"),
+    path("echeances/", views.deadlines_view, name="deadlines"),
     # Also the entry point used by the geoportal result table.
     path(
         "chantier/<int:satac_number>/",

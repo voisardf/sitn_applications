@@ -534,3 +534,50 @@ main .form-text {
   gap: 6px;
   align-items: center;
 }
+
+/* ------------------------------------------------- deadline banner */
+
+.sc-deadline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--sc-jaune);
+  border-left-width: 5px;
+  border-radius: var(--radius);
+  background: var(--sc-jaune-bg);
+  color: #8a6100;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sc-deadline-banner.is-overdue {
+  border-color: var(--sc-rouge);
+  background: var(--sc-rouge-bg);
+  color: var(--sc-rouge);
+}
+
+.sc-deadline-banner:hover {
+  filter: brightness(0.97);
+  color: inherit;
+}
+
+.sc-deadline-banner-cta {
+  margin-left: auto;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Deadline colouring inside measure tables. */
+.sc-deadline--due_soon {
+  color: #8a6100;
+  font-weight: 700;
+}
+
+.sc-deadline--overdue {
+  color: var(--sc-rouge);
+  font-weight: 700;
+}

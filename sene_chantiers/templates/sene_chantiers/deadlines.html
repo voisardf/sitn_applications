@@ -1,0 +1,89 @@
+{% extends "sene_chantiers/base.html" %}
+
+{% block title %}Échéances des mesures correctives{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:home' %}" class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour à l'accueil
+      </a>
+    </nav>
+
+    <h1 class="sc-page-title mb-3">Échéances des mesures correctives</h1>
+
+    <section class="sc-section">
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge"><i class="bi bi-clock-history"></i></span>
+          <p class="mb-0">Mesures en attente</p>
+        </div>
+        <span class="sc-pill {% if overdue_count %}sc-pill--rouge{% else %}sc-pill--jaune{% endif %}">
+          {{ overdue_count }} en retard · {{ due_soon_count }} à échéance
+        </span>
+      </header>
+      <div class="sc-section-body p-0">
+        {% if rows %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">N° SATAC</th>
+                  <th scope="col">Chantier</th>
+                  <th scope="col">Mesure</th>
+                  <th scope="col">Provenance</th>
+                  <th scope="col">Inspecteur</th>
+                  <th scope="col">Échéance</th>
+                  <th scope="col" class="text-end">Dossier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td>{{ row.chantier.satac_number }}</td>
+                    <td>{{ row.chantier.site_name }}</td>
+                    <td>{{ row.description|truncatechars:70 }}</td>
+                    <td>{{ row.origin }}</td>
+                    <td>
+                      {{ row.inspector.get_full_name|default:row.inspector.username }}
+                    </td>
+                    <td class="sc-deadline--{{ row.urgency }}">
+                      {{ row.deadline|date:"d.m.Y" }}
+                      {% if row.urgency == 'overdue' %}
+                        <i class="bi bi-exclamation-triangle" title="En retard"></i>
+                      {% elif row.urgency == 'due_soon' %}
+                        <i class="bi bi-hourglass-split" title="Échéance proche"></i>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <a class="btn sc-icon-btn"
+                         href="{% url 'sene_chantiers:chantier_landing' satac_number=row.chantier.satac_number %}"
+                         title="Ouvrir le dossier">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0 p-3">
+            Aucune mesure corrective n'arrive à échéance dans les
+            {{ warning_days }} prochains jours.
+          </p>
+        {% endif %}
+      </div>
+    </section>
+
+    <p class="form-text">
+      Une mesure passe en orange {{ warning_days }} jours avant son échéance,
+      puis en rouge une fois celle-ci dépassée. Un récapitulatif est envoyé
+      par courriel à chaque inspecteur, chaque semaine.
+    </p>
+
+  </div>
+</div>
+{% endblock %}

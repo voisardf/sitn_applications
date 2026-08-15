@@ -52,6 +52,7 @@ from .models import (
     WeatherCondition,
 )
 from .services import appreciation as appreciation_service
+from .services import deadlines as deadlines_service
 from .services import emails as email_service
 from .services import excel as excel_service
 from .services import pdf as pdf_service
@@ -810,3 +811,23 @@ def excel_export(request, satac_number):
         f'attachment; filename="dossier_{satac_number}.xlsx"'
     )
     return response
+
+
+@sene_chantiers_admin_required
+def deadlines_view(request):
+    """Every corrective measure approaching or past its deadline.
+
+    Shows the whole service's workload, not just the signed-in
+    inspector's, since cover during absences is the point of the list.
+    """
+    counts = deadlines_service.banner_counts()
+    return render(
+        request,
+        "sene_chantiers/deadlines.html",
+        {
+            "rows": counts["rows"],
+            "overdue_count": counts["overdue"],
+            "due_soon_count": counts["due_soon"],
+            "warning_days": deadlines_service.WARNING_DAYS,
+        },
+    )
