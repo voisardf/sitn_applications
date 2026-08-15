@@ -838,8 +838,10 @@ def deadlines_view(request):
         "sene_chantiers/deadlines.html",
         {
             "rows": counts["rows"],
+            "closures": counts["closures"],
             "overdue_count": counts["overdue"],
             "due_soon_count": counts["due_soon"],
+            "pending_closure_count": counts["pending_closure"],
             "warning_days": deadlines_service.WARNING_DAYS,
         },
     )

@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from ..models import (
+    Chantier,
     CorrectiveMeasure,
     FollowUpStatus,
     MeasureFollowUp,
@@ -112,23 +113,58 @@ def by_inspector(today=None):
     return grouped
 
 
+def closures_by_inspector():
+    grouped = {}
+    for row in pending_closures():
+        grouped.setdefault(row["inspector"], []).append(row)
+    return grouped
+
+
+def pending_closures():
+    """Dossiers concluded compliant whose notification email is still unsent.
+
+    Nothing else surfaces these: the measures are all closed, so the
+    deadline rules above have nothing left to report, and the dossier
+    would otherwise sit silently in that state forever. The closing
+    email is what actually informs the maître d'ouvrage.
+    """
+    rows = []
+    for chantier in Chantier.objects.select_related("commune"):
+        if not chantier.is_compliant or chantier.is_closed:
+            continue
+        report = chantier.latest_report
+        rows.append(
+            {
+                "chantier": chantier,
+                "inspector": report.inspector,
+                "since": getattr(report, "follow_up_date", None)
+                or getattr(report, "control_date", None),
+            }
+        )
+    rows.sort(key=lambda r: (r["since"], r["chantier"].satac_number))
+    return rows
+
+
 def banner_counts(today=None):
     """Totals for the in-app banner."""
     rows = _rows(today)
+    closures = pending_closures()
     return {
         "overdue": sum(1 for r in rows if r["urgency"] == OVERDUE),
         "due_soon": sum(1 for r in rows if r["urgency"] == DUE_SOON),
+        "pending_closure": len(closures),
         "rows": rows,
+        "closures": closures,
     }
 
 
-def _body(rows, today):
+def _body(rows, closures, today):
     overdue = [r for r in rows if r["urgency"] == OVERDUE]
     soon = [r for r in rows if r["urgency"] == DUE_SOON]
     lines = [
         "Bonjour,",
         "",
-        "Récapitulatif hebdomadaire des mesures correctives en attente "
+        "Récapitulatif hebdomadaire du suivi de chantiers "
         f"au {today.strftime('%d.%m.%Y')}.",
         "",
     ]
@@ -152,6 +188,19 @@ def _body(rows, today):
                 f"{row['description'][:80]}"
             )
         lines.append("")
+    if closures:
+        lines.append(f"CHANTIER CONFORME, COURRIEL À ENVOYER ({len(closures)})")
+        for row in closures:
+            lines.append(
+                f"  · SATAC {row['chantier'].satac_number} — "
+                f"{row['chantier'].site_name} — conforme depuis le "
+                f"{row['since'].strftime('%d.%m.%Y')}"
+            )
+        lines.append(
+            "    Le dossier reste ouvert tant que le courriel de levée "
+            "n'est pas envoyé."
+        )
+        lines.append("")
     lines.append("Ce message est généré automatiquement par sene_chantiers.")
     return "\n".join(lines)
 
@@ -163,16 +212,23 @@ def send_digest(today=None, dry_run=False):
     are not mailed at all, so a quiet week produces no noise.
     """
     today = today or timezone.localdate()
+    measures = by_inspector(today)
+    closures = closures_by_inspector()
     sent = 0
-    for inspector, rows in by_inspector(today).items():
+    for inspector in set(measures) | set(closures):
         if not inspector.email:
             continue
-        subject = (
-            f"Mesures correctives à échéance — {len(rows)} en attente"
-        )
+        rows = measures.get(inspector, [])
+        inspector_closures = closures.get(inspector, [])
+        parts = []
+        if rows:
+            parts.append(f"{len(rows)} mesure(s) à échéance")
+        if inspector_closures:
+            parts.append(f"{len(inspector_closures)} courriel(s) à envoyer")
+        subject = "Suivi de chantiers — " + ", ".join(parts)
         message = EmailMessage(
             subject=subject,
-            body=_body(rows, today),
+            body=_body(rows, inspector_closures, today),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[inspector.email],
         )

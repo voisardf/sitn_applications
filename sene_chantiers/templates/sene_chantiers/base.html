@@ -42,7 +42,7 @@
   </header>
 
   <main class="container-fluid py-4">
-    {% if sc_overdue_count or sc_due_soon_count %}
+    {% if sc_overdue_count or sc_due_soon_count or sc_pending_closure_count %}
       <a class="sc-deadline-banner{% if sc_overdue_count %} is-overdue{% endif %}"
          href="{% url 'sene_chantiers:deadlines' %}">
         <i class="bi bi-clock-history"></i>
@@ -53,7 +53,12 @@
         {% endif %}
         {% if sc_due_soon_count %}
           <strong>{{ sc_due_soon_count }}</strong>
-          à échéance dans les {{ sc_warning_days|default:2 }} jours
+          à échéance dans les {{ sc_warning_days|default:2 }} jours{% if sc_pending_closure_count %},{% endif %}
+        {% endif %}
+        {% if sc_pending_closure_count %}
+          <strong>{{ sc_pending_closure_count }}</strong>
+          chantier{{ sc_pending_closure_count|pluralize }} conforme{{ sc_pending_closure_count|pluralize }}
+          en attente de courriel
         {% endif %}
         <span class="sc-deadline-banner-cta">Voir les échéances &rsaquo;</span>
       </a>

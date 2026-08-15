@@ -6,7 +6,12 @@ from django.core import mail
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from ..models import FollowUpStatus, MeasureFollowUp, MeasureStatus
+from ..models import (
+    Appreciation,
+    FollowUpStatus,
+    MeasureFollowUp,
+    MeasureStatus,
+)
 from ..services import deadlines
 from .factories import (
     TODAY,
@@ -155,3 +160,69 @@ class DeadlineViewTest(MemberClientMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "999920")
         self.assertContains(response, "collegue")
+
+
+class PendingClosureTest(MemberClientMixin, TestCase):
+    """Un chantier conforme dont le courriel n'est pas parti.
+
+    Rien d'autre ne le signale : ses mesures sont toutes fermées, donc les
+    règles d'échéance n'ont plus rien à dire, et le dossier resterait
+    indéfiniment dans cet état sans que personne ne le voie.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999600)
+        self.report = make_control_report(
+            self.chantier, user=self.user,
+            global_appreciation=Appreciation.ROUGE,
+            next_control_date=TODAY + timedelta(days=10),
+        )
+        self.measure = make_measure(self.report)
+        self.followup = make_followup(
+            self.chantier, user=self.user, global_appreciation=Appreciation.VERT
+        )
+        MeasureFollowUp.objects.create(
+            corrective_measure_report=self.followup,
+            original_measure=self.measure,
+            findings="Mesure réalisée et conforme.",
+            status=FollowUpStatus.CLOSED,
+        )
+
+    def _mine(self):
+        return [
+            row
+            for row in deadlines.pending_closures()
+            if row["chantier"].satac_number == self.chantier.satac_number
+        ]
+
+    def test_compliant_unsent_dossier_is_reported(self):
+        rows = self._mine()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["since"], self.followup.follow_up_date)
+
+    def test_a_closed_dossier_is_not_reported(self):
+        self.followup.is_locked = True  # ce que fait l'envoi du courriel
+        self.followup.save(update_fields=["is_locked"])
+        self.assertEqual(self._mine(), [])
+
+    def test_a_non_compliant_dossier_is_not_reported(self):
+        self.followup.global_appreciation = Appreciation.ROUGE
+        self.followup.save(update_fields=["global_appreciation"])
+        self.assertEqual(self._mine(), [])
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"
+    )
+    def test_the_digest_reports_it_even_without_any_deadline(self):
+        mail.outbox = []
+        deadlines.send_digest(TODAY)
+        mine = [m for m in mail.outbox if m.to == [self.user.email]]
+        self.assertEqual(len(mine), 1)
+        self.assertIn("COURRIEL À ENVOYER", mine[0].body)
+        self.assertIn(str(self.chantier.satac_number), mine[0].body)
+
+    def test_the_deadlines_page_lists_it(self):
+        response = self.client.get(reverse("sene_chantiers:deadlines"))
+        self.assertContains(response, "en attente de courriel")
+        self.assertContains(response, str(self.chantier.satac_number))

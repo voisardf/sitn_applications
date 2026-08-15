@@ -18,4 +18,5 @@ def deadline_banner(request):
     return {
         "sc_overdue_count": counts["overdue"],
         "sc_due_soon_count": counts["due_soon"],
+        "sc_pending_closure_count": counts["pending_closure"],
     }

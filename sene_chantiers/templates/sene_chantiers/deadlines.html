@@ -78,6 +78,57 @@
       </div>
     </section>
 
+    {% if closures %}
+      <section class="sc-section">
+        <header>
+          <div class="sc-section-head-left">
+            <span class="sc-badge"><i class="bi bi-envelope-exclamation"></i></span>
+            <p class="mb-0">Chantiers conformes en attente de courriel</p>
+          </div>
+          <span class="sc-pill sc-pill--vert">{{ pending_closure_count }}</span>
+        </header>
+        <div class="sc-section-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">N° SATAC</th>
+                  <th scope="col">Chantier</th>
+                  <th scope="col">Inspecteur</th>
+                  <th scope="col">Conforme depuis</th>
+                  <th scope="col" class="text-end">Dossier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in closures %}
+                  <tr>
+                    <td>{{ row.chantier.satac_number }}</td>
+                    <td>{{ row.chantier.site_name }}</td>
+                    <td>
+                      {{ row.inspector.get_full_name|default:row.inspector.username }}
+                    </td>
+                    <td>{{ row.since|date:"d.m.Y" }}</td>
+                    <td class="text-end">
+                      <a class="btn sc-icon-btn"
+                         href="{% url 'sene_chantiers:chantier_landing' satac_number=row.chantier.satac_number %}"
+                         title="Ouvrir le dossier">
+                        <i class="bi bi-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="form-text px-3 py-2 mb-0">
+            Le dossier reste ouvert tant que le courriel de levée n'est pas
+            envoyé : c'est lui qui informe le maître d'ouvrage et clôt
+            définitivement le cycle.
+          </p>
+        </div>
+      </section>
+    {% endif %}
+
     <p class="form-text">
       Une mesure passe en orange {{ warning_days }} jours avant son échéance,
       puis en rouge une fois celle-ci dépassée. Un récapitulatif est envoyé
