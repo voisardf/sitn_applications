@@ -1,0 +1,83 @@
+{
+  "_comment": [
+    "Données de référence fictives pour les tests, reproduisant la forme des",
+    "tables partagées searchtables.search_satac et",
+    "amenagement.at034_autorisation_construire.",
+    "",
+    "Les numéros SATAC sont dans la plage 99xxxx, hors des numéros réels, et",
+    "les noms sont inventés : ce dépôt est public.",
+    "",
+    "Les géométries sont en EPSG:2056 (MN95), au format GeoJSON. Les",
+    "coordonnées situent les chantiers dans le canton de Neuchâtel sans",
+    "correspondre à une parcelle existante."
+  ],
+  "communes": [
+    {"numcom": 74, "comnom": "Val-de-Ruz"},
+    {"numcom": 77, "comnom": "Neuchâtel"}
+  ],
+  "search_satac": [
+    {
+      "idobj": "aaaaaaaa-0000-4000-8000-000000990001",
+      "instance_id": 990001,
+      "state_code": null,
+      "search_satac": "N° SATAC: 990001",
+      "geometry": {"type": "Point", "coordinates": [2558956, 1210120]},
+      "actions": "[{\"action\": \"add_layer\", \"data\": \"at034_autorisation_construire_apres\"}]"
+    },
+    {
+      "idobj": "aaaaaaaa-0000-4000-8000-000000990002",
+      "instance_id": 990002,
+      "state_code": null,
+      "search_satac": "N° SATAC: 990002",
+      "geometry": {"type": "Point", "coordinates": [2561200, 1205400]},
+      "actions": "[{\"action\": \"add_layer\", \"data\": \"at034_autorisation_construire_apres\"}]"
+    },
+    {
+      "idobj": "aaaaaaaa-0000-4000-8000-000000990003",
+      "instance_id": 990003,
+      "state_code": null,
+      "search_satac": "N° SATAC: 990003",
+      "geometry": {"type": "Point", "coordinates": [2559100, 1211000]},
+      "actions": "[{\"action\": \"add_layer\", \"data\": \"at034_autorisation_construire_apres\"}]"
+    }
+  ],
+  "at034": [
+    {
+      "idobj": "bbbbbbbb-0000-4000-8000-000000990001",
+      "instance_id": 990001,
+      "commune": "Val-de-Ruz",
+      "idcom": 74,
+      "geometry": {"type": "Point", "coordinates": [2558956, 1210120]},
+      "description_ouvrage": "Réaménagement du secteur des Tilleuls",
+      "requerant": "Commune exemple",
+      "etat_dossier": "Autorisé",
+      "parcelle": "1234",
+      "zone": "Zone d'habitation à faible densité"
+    },
+    {
+      "idobj": "bbbbbbbb-0000-4000-8000-000000990002",
+      "instance_id": 990002,
+      "commune": "Neuchâtel",
+      "idcom": 77,
+      "geometry": {"type": "Point", "coordinates": [2561200, 1205400]},
+      "description_ouvrage": "Construction d'un dépôt communal",
+      "requerant": "Entreprise exemple SA",
+      "etat_dossier": "Autorisé",
+      "parcelle": "5678",
+      "zone": "Zone d'activités"
+    },
+    {
+      "_comment": "Sans correspondance dans search_satac : teste le cas où le permis existe mais l'index de recherche ne le connaît pas.",
+      "idobj": "bbbbbbbb-0000-4000-8000-000000990004",
+      "instance_id": 990004,
+      "commune": "Val-de-Ruz",
+      "idcom": 74,
+      "geometry": {"type": "Point", "coordinates": [2557000, 1209000]},
+      "description_ouvrage": "Transformation d'une ferme",
+      "requerant": "Particulier exemple",
+      "etat_dossier": "En cours",
+      "parcelle": "9012",
+      "zone": "Zone agricole"
+    }
+  ]
+}
