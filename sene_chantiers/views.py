@@ -63,13 +63,8 @@ RECENT_DOSSIERS_LIMIT = 5
 
 def _latest_appreciation(chantier):
     """Appreciation of the most recent report, initial or follow-up."""
-    latest_followup = chantier.corrective_measure_reports.order_by(
-        "-follow_up_date"
-    ).first()
-    if latest_followup:
-        return latest_followup.global_appreciation
-    control_report = getattr(chantier, "control_report", None)
-    return control_report.global_appreciation if control_report else None
+    report = chantier.latest_report
+    return report.global_appreciation if report else None
 
 
 def _decorate(chantier):
@@ -121,9 +116,12 @@ def _dossier_reports(chantier):
 def _dossier_emails(chantier):
     rows = []
     for record in chantier.email_records.all():
+        report = record.report
         rows.append(
             {
                 "pk": record.pk,
+                "kind_slug": "controle" if record.control_report_id else "suivi",
+                "report_pk": report.pk if report else None,
                 "date": record.display_date,
                 "status_label": email_status_label(record.template_used),
                 "appreciation": email_status_appreciation(record.template_used),
@@ -206,6 +204,7 @@ def chantier_landing(request, satac_number):
             "chantier": _decorate(chantier),
             "reports": _dossier_reports(chantier),
             "emails": _dossier_emails(chantier),
+            "is_closed": chantier.is_closed,
         },
     )
 
@@ -457,6 +456,15 @@ def corrective_measure_report_create(request, satac_number):
     if control_report is None:
         messages.error(
             request, "Le contrôle initial doit exister avant un suivi."
+        )
+        return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
+    if chantier.is_closed:
+        # The lifecycle ends on a compliant visit: only the notification
+        # email remains. Blocked here as well as hidden in the template.
+        messages.error(
+            request,
+            "Le dernier contrôle conclut à la conformité du chantier : "
+            "le dossier est clos et n'admet plus de suivi.",
         )
         return redirect("sene_chantiers:chantier_landing", satac_number=satac_number)
     if request.method != "POST":

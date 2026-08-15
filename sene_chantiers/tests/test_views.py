@@ -6,14 +6,21 @@ from unittest.mock import patch
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from django.utils import timezone
+
 from ..models import (
     Appreciation,
+    CorrectiveMeasureReport,
+    EmailRecord,
+    EmailStatus,
+    EmailTemplate,
     Conformity,
     ConstructionPhase,
     ControlPoint,
     ControlReport,
     CorrectiveMeasureReport,
     FollowUpStatus,
+    MeasureFollowUp,
     MeasureStatus,
     Theme,
     WeatherCondition,
@@ -202,7 +209,11 @@ class CorrectiveMeasureReportViewTest(MemberClientMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.chantier = make_chantier(satac_number=999300)
-        self.report = make_control_report(chantier=self.chantier)
+        self.report = make_control_report(
+            chantier=self.chantier,
+            global_appreciation=Appreciation.ROUGE,
+            next_control_date=TODAY + timedelta(days=10),
+        )
         self.measure_a = make_measure(self.report, order=1)
         self.measure_b = make_measure(
             self.report, order=2, description="Bâcher les camions"
@@ -212,7 +223,11 @@ class CorrectiveMeasureReportViewTest(MemberClientMixin, TestCase):
         self.client.post(
             reverse("sene_chantiers:corrective_measure_report_create", args=[999300])
         )
-        return CorrectiveMeasureReport.objects.order_by("-pk").first()
+        return (
+            CorrectiveMeasureReport.objects.filter(chantier=self.chantier)
+            .order_by("-pk")
+            .first()
+        )
 
     def test_first_followup_chains_from_the_initial_report(self):
         followup = self._create_followup()
@@ -256,3 +271,129 @@ class CorrectiveMeasureReportViewTest(MemberClientMixin, TestCase):
 # ---------------------------------------------------------------------------
 # Sécurité : isolation entre onglets
 # ---------------------------------------------------------------------------
+
+
+class CaseClosureTest(MemberClientMixin, TestCase):
+    """Un contrôle conforme clôt le cycle : plus aucun suivi n'est possible."""
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999500)
+        self.report = make_control_report(
+            self.chantier, global_appreciation=Appreciation.ROUGE,
+            next_control_date=TODAY + timedelta(days=10),
+        )
+        self.measure = make_measure(self.report)
+
+    def _followup(self, appreciation_value, concluded=True, **kwargs):
+        """Un suivi tel que l'inspecteur le laisse après sa visite.
+
+        `concluded=False` reproduit un rapport fraîchement créé, encore
+        vierge : son appréciation est la valeur par défaut, pas un constat.
+        """
+        kwargs.setdefault("follow_up_date", TODAY)
+        report = CorrectiveMeasureReport.objects.create(
+            chantier=self.chantier,
+            inspector=self.user,
+            global_appreciation=appreciation_value,
+            **kwargs,
+        )
+        MeasureFollowUp.objects.create(
+            corrective_measure_report=report,
+            original_measure=self.measure,
+            findings="Mesure vérifiée sur place." if concluded else "",
+            status=(
+                FollowUpStatus.CLOSED
+                if appreciation_value == Appreciation.VERT
+                else FollowUpStatus.NOT_DONE
+            ),
+            new_deadline=(
+                None
+                if appreciation_value == Appreciation.VERT
+                else TODAY + timedelta(days=10)
+            ),
+        )
+        return report
+
+    def test_dossier_is_open_while_the_site_is_not_compliant(self):
+        self._followup(Appreciation.ROUGE)
+        self.assertFalse(self.chantier.is_closed)
+
+    def test_a_blank_report_does_not_close_the_dossier(self):
+        """Son Vert est la valeur par défaut du champ, pas un constat."""
+        self._followup(Appreciation.VERT, concluded=False)
+        self.assertFalse(self.chantier.is_closed)
+
+    def test_a_compliant_visit_closes_the_dossier(self):
+        self._followup(Appreciation.VERT)
+        self.assertTrue(self.chantier.is_closed)
+
+    def test_closure_follows_the_most_recent_visit(self):
+        """Un ancien contrôle conforme ne clôt rien si un suivi l'a rouvert."""
+        self._followup(Appreciation.VERT, follow_up_date=TODAY - timedelta(days=10))
+        self._followup(Appreciation.ROUGE, follow_up_date=TODAY)
+        self.assertFalse(self.chantier.is_closed)
+
+    def test_landing_hides_the_follow_up_action_once_closed(self):
+        self._followup(Appreciation.VERT)
+        response = self.client.get(
+            reverse("sene_chantiers:chantier_landing", args=[999500])
+        )
+        self.assertContains(response, "Dossier clos")
+        self.assertNotContains(response, "Nouveau suivi")
+
+    def test_creating_a_follow_up_on_a_closed_dossier_is_refused(self):
+        self._followup(Appreciation.VERT)
+        before = self.chantier.corrective_measure_reports.count()
+
+        response = self.client.post(
+            reverse(
+                "sene_chantiers:corrective_measure_report_create", args=[999500]
+            ),
+            follow=True,
+        )
+
+        self.assertEqual(
+            self.chantier.corrective_measure_reports.count(), before
+        )
+        self.assertContains(response, "dossier est clos")
+
+    def test_the_email_remains_available_after_closure(self):
+        """Le courriel de levée reste la dernière action possible."""
+        followup = self._followup(Appreciation.VERT)
+        response = self.client.get(
+            reverse("sene_chantiers:email_manager", args=["suivi", followup.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+
+
+class CourrielsListTest(MemberClientMixin, TestCase):
+    """La liste des courriels ouvre le gestionnaire du rapport concerné."""
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999510)
+        self.report = make_control_report(self.chantier)
+
+    def test_each_courriel_links_to_its_report(self):
+        EmailRecord.objects.create(
+            chantier=self.chantier,
+            control_report=self.report,
+            template_used=EmailTemplate.CONFORME,
+            recipient_email="destinataire@example.ch",
+            subject="Objet",
+            body="Corps",
+            status=EmailStatus.SENT,
+            sent_at=timezone.now(),
+        )
+        response = self.client.get(
+            reverse("sene_chantiers:chantier_landing", args=[999510])
+        )
+        self.assertContains(
+            response,
+            reverse(
+                "sene_chantiers:email_manager", args=["controle", self.report.pk]
+            ),
+        )
+        # Plus de bouton désactivé « étape à venir » dans cette colonne.
+        self.assertNotContains(response, "étape à venir")

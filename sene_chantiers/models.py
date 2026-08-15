@@ -320,6 +320,28 @@ class Chantier(models.Model):
     def __str__(self):
         return f"{self.satac_number} — {self.site_name}"
 
+    @property
+    def latest_report(self):
+        """The most recent visit: the last follow-up, else the initial one."""
+        latest = self.corrective_measure_reports.order_by(
+            "-follow_up_date", "-pk"
+        ).first()
+        return latest or getattr(self, "control_report", None)
+
+    @property
+    def is_closed(self):
+        """True once a visit has concluded that the site is compliant.
+
+        The lifecycle ends there: no further corrective-measures follow-up
+        can be opened, and the only remaining action is the notification
+        email that informs the maître d'ouvrage.
+
+        A report that has not been filled in yet does not close anything:
+        its appreciation is still the field default, not a finding.
+        """
+        report = self.latest_report
+        return bool(report and report.closes_the_case and report.is_concluded)
+
 
 class BaseReport(models.Model):
     """Fields shared by both report types. No table of its own."""
@@ -412,6 +434,11 @@ class ControlReport(BaseReport):
     def __str__(self):
         return f"Contrôle initial du {self.control_date}"
 
+    @property
+    def is_concluded(self):
+        """True once the section 04 checklist has started being answered."""
+        return self.control_point_answers.exclude(conformity="").exists()
+
     def clean(self):
         super().clean()
         if self.control_date and self.control_date > timezone.localdate():
@@ -467,6 +494,11 @@ class CorrectiveMeasureReport(BaseReport):
 
     def __str__(self):
         return f"Suivi du {self.follow_up_date}"
+
+    @property
+    def is_concluded(self):
+        """True once the re-checked measures carry the inspector's findings."""
+        return self.measure_followups.exclude(findings="").exists()
 
     def clean(self):
         super().clean()

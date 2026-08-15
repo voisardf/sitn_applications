@@ -66,7 +66,11 @@
           <span class="sc-badge">01</span>
           <p class="mb-0">Historique des rapports</p>
         </div>
-        {% if reports %}
+        {% if is_closed %}
+          <span class="sc-pill sc-pill--vert" title="Le dernier contrôle conclut à la conformité">
+            <i class="bi bi-check-circle"></i> Dossier clos — chantier conforme
+          </span>
+        {% elif reports %}
           <form method="post"
                 action="{% url 'sene_chantiers:corrective_measure_report_create' satac_number=chantier.satac_number %}"
                 class="m-0">
@@ -179,10 +183,13 @@
                     </td>
                     <td>{{ email.subject }}</td>
                     <td class="text-end">
-                      <span class="btn sc-icon-btn is-mail disabled"
-                            title="{% if email.is_sent %}Consulter{% else %}Modifier le brouillon{% endif %} — étape à venir">
-                        <i class="bi {% if email.is_sent %}bi-eye{% else %}bi-pencil{% endif %}"></i>
-                      </span>
+                      {% if email.report_pk %}
+                        <a class="btn sc-icon-btn is-mail"
+                           href="{% url 'sene_chantiers:email_manager' kind=email.kind_slug pk=email.report_pk %}"
+                           title="{% if email.is_sent %}Consulter le courriel{% else %}Modifier le brouillon{% endif %}">
+                          <i class="bi {% if email.is_sent %}bi-eye{% else %}bi-pencil{% endif %}"></i>
+                        </a>
+                      {% endif %}
                     </td>
                   </tr>
                 {% endfor %}
