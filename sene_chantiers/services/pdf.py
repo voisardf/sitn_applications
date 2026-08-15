@@ -3,9 +3,14 @@
 The service takes fully-rendered HTML and returns the PDF; there is no
 in-process weasyprint import. sene_chantiers is its first consumer in
 this monorepo, so the client lives here.
+
+The report PDF carries no photographs. Photos travel with the
+notification email as their own attachments, alongside the PDF, and stay
+in /data for consultation. Nothing image-related is therefore sent to the
+service, which keeps the POST body small and needs no filesystem or
+network access back to the application.
 """
 
-import base64
 import logging
 
 import requests
@@ -61,33 +66,6 @@ def html_to_pdf(html):
     return response.content
 
 
-def _photo_rows(report, per_row=3):
-    """Photos grouped into table rows, inlined as data URIs.
-
-    The HTML must be self-contained: the service renders it in its own
-    container, and may not even run on this host, so it can reach neither
-    our URLs nor our filesystem. Embedding the bytes is what makes the
-    document portable to any WeasyPrint instance.
-    """
-    photos = []
-    for photo in report.photos.all():
-        if not photo.image:
-            continue
-        try:
-            photo.image.open("rb")
-            payload = photo.image.read()
-            photo.image.close()
-        except OSError:
-            logger.warning("Photo %s unreadable, skipped in the PDF", photo.pk)
-            continue
-        mime = "image/png" if photo.image.name.lower().endswith(".png")             else "image/jpeg"
-        photo.data_uri = (
-            f"data:{mime};base64,{base64.b64encode(payload).decode('ascii')}"
-        )
-        photos.append(photo)
-    return [photos[i:i + per_row] for i in range(0, len(photos), per_row)]
-
-
 def _control_report_context(report):
     """Section 02 and 04 need the checklist grouped and counted."""
     answers = list(
@@ -120,7 +98,6 @@ def _control_report_context(report):
         "chantier": report.chantier,
         "theme_rows": theme_rows,
         "detail_blocks": detail_blocks,
-        "photo_rows": _photo_rows(report),
     }
 
 
@@ -142,8 +119,7 @@ def corrective_measure_report_pdf(report):
             "chantier": report.chantier,
             "first_control_date": report.chantier.control_report.control_date,
             "observations": followup_observations(report),
-            "photo_rows": _photo_rows(report),
-        },
+            },
     )
     return html_to_pdf(html)
 

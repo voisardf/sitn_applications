@@ -25,10 +25,10 @@
   h1 { font-size: 15pt; margin: 0 0 2mm; color: #1c2b4a; }
   .subtitle { font-size: 9pt; color: #6b7280; margin: 0 0 5mm; }
 
-  /* Sections must not be split mid-table, mid-photo or mid-list. */
+  /* Sections must not be split mid-table or mid-list. */
   .section { break-inside: avoid; margin-bottom: 5mm; }
   table { break-inside: avoid; }
-  tr, .photo, li { break-inside: avoid; }
+  tr, li { break-inside: avoid; }
 
   .section > h2 {
     font-size: 9.5pt;
@@ -61,10 +61,6 @@
     font-size: 7.5pt; color: #6b7280; break-inside: avoid;
   }
   .legend { font-size: 7.5pt; color: #6b7280; margin-top: 2mm; }
-  .photo-grid { width: 100%; }
-  .photo-grid td { width: 33%; border: 0; padding: 2mm; }
-  .photo-grid img { width: 100%; border: 1px solid #e2e6ec; }
-  .caption { font-style: italic; font-size: 7.5pt; color: #6b7280; }
   .obs { white-space: pre-wrap; }
 </style>
 </head>
