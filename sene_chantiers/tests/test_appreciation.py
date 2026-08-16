@@ -20,7 +20,7 @@ from .factories import (
 
 
 class ThemeAppreciationTest(TestCase):
-    """0 Non → Vert, 1 → Jaune, 2+ → Rouge ; N.A. ne compte pas."""
+    """0 Non → vert, 1 → jaune, 2+ → rouge ; N.A. ne compte pas."""
 
     def test_all_compliant(self):
         self.assertEqual(
@@ -142,8 +142,8 @@ class RecomputeTest(TestCase):
 
         suggested = appreciation.recompute_control_report(self.report)
 
-        # Deux Non dans un seul thème : ce thème est Rouge, mais un seul
-        # thème non conforme laisse le rapport en Jaune.
+        # Deux Non dans un seul thème : ce thème est rouge, mais un seul
+        # thème non conforme laisse le rapport en jaune.
         self.assertEqual(
             self.report.theme_assessments.get(theme=theme).appreciation,
             Appreciation.ROUGE,

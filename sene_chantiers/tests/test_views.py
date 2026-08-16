@@ -327,7 +327,7 @@ class CaseClosureTest(MemberClientMixin, TestCase):
         self.assertFalse(self.chantier.is_closed)
 
     def test_a_blank_report_does_not_stop_the_cycle(self):
-        """Son Vert est la valeur par défaut du champ, pas un constat."""
+        """Son `vert` est la valeur par défaut du champ, pas un constat."""
         self._followup(Appreciation.VERT, concluded=False)
         self.assertFalse(self.chantier.is_compliant)
 

@@ -7,7 +7,7 @@ same db_table quoting convention as the ppe app.
 Cross-row rules, enforced at the view/formset layer, not here:
     Three rules below check whether a SET of child rows meets some
     condition, rather than a single row's own fields — CorrectiveMeasure
-    (>=1 row when the report is not Vert), ThemeAssessment (exactly one
+    (>=1 row when the report is not `vert`), ThemeAssessment (exactly one
     row per Theme per report), and ControlPointAnswer (exactly one row
     per ControlPoint per report). None of these can be a Model.clean() on
     the parent: on creation the parent has no id yet for children to
@@ -342,8 +342,8 @@ class Chantier(models.Model):
         compliant by mistake can correct it — which turns the appreciation
         back and reopens the cycle.
 
-        Requires an actual finding, not merely a Vert appreciation: a
-        freshly created report carries Vert as its field default and would
+        Requires an actual finding, not merely a `vert` value: a
+        freshly created report carries `vert` as its field default and would
         otherwise suspend the cycle before anything had been filled in.
         """
         report = self.latest_report
@@ -625,7 +625,7 @@ class CorrectiveMeasure(models.Model):
     """Section 03 of the initial report.
 
     Required as a set: >=1 row when the report's global_appreciation is not
-    Vert, 0 rows valid when it is. Completeness is a cross-row rule — see
+    `vert`, 0 rows valid when it is. Completeness is a cross-row rule — see
     the module docstring.
     """
 

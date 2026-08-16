@@ -10,8 +10,8 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Appreciation, EmailTemplate
 
-# Courriels list — describes the action requested, so "Jaune" reads as
-# "Mesures à prendre" here rather than "Écarts mineurs".
+# Courriels list — describes the action requested, so the `jaune` case
+# reads as "Mesures à prendre" here rather than "Écarts mineurs".
 EMAIL_TEMPLATE_LABELS = {
     EmailTemplate.CONFORME: _("Conforme"),
     EmailTemplate.NON_CONFORMITES: _("Mesures à prendre"),

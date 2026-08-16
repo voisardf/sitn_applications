@@ -4,20 +4,25 @@ Pure functions so the rules can be exercised directly. Each result is a
 suggestion: the inspector can always override it, and an override is
 remembered through `global_appreciation_is_manual_override`.
 
+These functions return a stored *value* -- a colour slug. What the user
+reads is the corresponding label, which is a different thing: `vert` is
+"Conforme", `jaune` is "Écarts mineurs", `rouge` is "Non conforme". Say
+"the appreciation is Conforme", never "the appreciation is Vert".
+
 Rules (confirmed 2026-08-13):
   Per theme, from its section 04 checklist:
-      0 "Non"                      -> Vert
-      exactly 1 "Non"              -> Jaune
-      2 or more "Non"              -> Rouge
-      every point N.A.             -> Jaune
+      0 "Non"                      -> vert
+      exactly 1 "Non"              -> jaune
+      2 or more "Non"              -> rouge
+      every point N.A.             -> jaune
   Report-wide, from the count of non-compliant themes:
-      0 non-compliant themes       -> Vert
-      exactly 1                    -> Jaune
-      2 or more                    -> Rouge
+      0 non-compliant themes       -> vert
+      exactly 1                    -> jaune
+      2 or more                    -> rouge
   Follow-up report, from the measure statuses:
-      0 still open / not done      -> Vert
-      exactly 1 still open         -> Jaune
-      any not done, or 2+ open     -> Rouge
+      0 still open / not done      -> vert
+      exactly 1 still open         -> jaune
+      any not done, or 2+ open     -> rouge
 """
 
 from ..models import Appreciation, Conformity, FollowUpStatus

@@ -14,13 +14,17 @@ child rows and therefore live in the view, not in `Model.clean()`. Two of
 them — one ThemeAssessment per Theme, one ControlPointAnswer per
 ControlPoint — are also database constraints, so the admin inherits them.
 The third is not, and is re-implemented here in
-`CorrectiveMeasureInline`: a report that is not Vert must keep at least
-one mesure à prendre.
+`CorrectiveMeasureInline`: a report whose appreciation is not Conforme
+must keep at least one mesure à prendre.
 
 Cascades. The admin saves exactly what is typed. It does not recompute
-the Vert/Jaune/Rouge cascade, which is what the application's own view
-does on every save. A superuser correcting a conformity answer must
-therefore set the resulting appreciation themselves.
+the appreciation cascade, which is what the application's own view does
+on every save. A superuser correcting a conformity answer must therefore
+set the resulting appreciation themselves.
+
+Note the vocabulary throughout: `vert`/`jaune`/`rouge` are the stored
+values and the traffic-light colours; Conforme / Écarts mineurs / Non
+conforme are the appreciations they display as.
 """
 
 from django.contrib import admin
@@ -140,7 +144,7 @@ class ReportAdminMixin:
 
 
 class CorrectiveMeasureFormSet(BaseInlineFormSet):
-    """A non-Vert report must keep at least one mesure à prendre.
+    """A report whose appreciation is not `vert` keeps >=1 mesure à prendre.
 
     The same rule as `views._cross_row_errors`. It cannot live on the
     model: it asks whether a *set* of child rows is empty, which is only
