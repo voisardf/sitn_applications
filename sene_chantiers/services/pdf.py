@@ -11,17 +11,39 @@ service, which keeps the POST body small and needs no filesystem or
 network access back to the application.
 """
 
+import base64
+import functools
 import logging
+from pathlib import Path
 
 import requests
 from django.conf import settings
 from django.template.loader import render_to_string
 
+from ..labels import appreciation_scale
 from ..models import Conformity
 
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 60
+
+LOGO_PATH = Path(settings.BASE_DIR) / "static" / "images" / "logo_ne.png"
+
+
+@functools.lru_cache(maxsize=1)
+def logo_data_uri():
+    """The cantonal logo, inlined.
+
+    The service resolves no URLs, so a `{% static %}` path would silently
+    render as a missing image. Cached because the file never changes
+    within a process.
+    """
+    try:
+        encoded = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    except OSError:
+        logger.warning("PDF logo missing at %s", LOGO_PATH)
+        return ""
+    return f"data:image/png;base64,{encoded}"
 
 
 class PdfServiceError(RuntimeError):
@@ -92,12 +114,17 @@ def _control_report_context(report):
             "theme": assessment.theme,
             "answers": theme_answers,
             "observations": assessment.detail_observations,
+            # Section 04 repeats the per-theme pill alongside the detail.
+            "assessment": assessment,
         })
     return {
         "report": report,
         "chantier": report.chantier,
         "theme_rows": theme_rows,
         "detail_blocks": detail_blocks,
+        "report_date": report.control_date,
+        "appreciation_scale": appreciation_scale("control"),
+        "logo_data_uri": logo_data_uri(),
     }
 
 
@@ -112,6 +139,12 @@ def control_report_pdf(report):
 def corrective_measure_report_pdf(report):
     from ..views import followup_observations
 
+    scale = appreciation_scale("followup")
+    conclusion = next(
+        (l["description"] for l in scale
+         if l["value"] == report.global_appreciation),
+        "",
+    )
     html = render_html(
         "sene_chantiers/pdf/corrective_measure_report.html",
         {
@@ -119,7 +152,11 @@ def corrective_measure_report_pdf(report):
             "chantier": report.chantier,
             "first_control_date": report.chantier.control_report.control_date,
             "observations": followup_observations(report),
-            },
+            "report_date": report.follow_up_date,
+            "appreciation_scale": scale,
+            "conclusion_text": conclusion,
+            "logo_data_uri": logo_data_uri(),
+        },
     )
     return html_to_pdf(html)
 

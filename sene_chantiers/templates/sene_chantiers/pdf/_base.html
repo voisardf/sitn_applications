@@ -1,6 +1,14 @@
-{# Print stylesheet shared by both report PDFs. Self-contained: the
-   service fetches nothing, so everything is inlined. #}
-<!DOCTYPE html>
+{% comment %}
+Print layout shared by both report PDFs, following the A4 mockups.
+
+Self-contained by necessity: the WeasyPrint service fetches nothing, so
+the stylesheet is inlined, the logo arrives as a data URI and the icons
+are inline SVG rather than the CDN icon font the web pages use.
+
+Layout is done with tables, not flex/grid: the service's WeasyPrint
+handles table layout predictably, including the rowspan alignment that
+section 04 depends on.
+{% endcomment %}<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -8,93 +16,294 @@
 <style>
   @page {
     size: A4;
-    margin: 16mm 14mm 20mm 14mm;
-    @bottom-center {
-      content: "Page " counter(page) " / " counter(pages);
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 8pt;
-      color: #6b7280;
+    margin: 13mm 12mm 16mm 12mm;
+    @bottom-left {
+      content: "Service de l'environnement et de l'énergie (SENE) – Rue du Tombet 24 – 2034 Peseux";
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 6.5pt;
+      color: #8a94a3;
+    }
+    @bottom-right {
+      content: counter(page) " / " counter(pages);
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 6.5pt;
+      color: #8a94a3;
     }
   }
+
+  :root {}
   body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 9pt;
-    color: #1f2937;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    color: #2b3440;
     margin: 0;
-  }
-  h1 { font-size: 15pt; margin: 0 0 2mm; color: #1c2b4a; }
-  .subtitle { font-size: 9pt; color: #6b7280; margin: 0 0 5mm; }
-
-  /* Sections must not be split mid-table or mid-list. */
-  .section { break-inside: avoid; margin-bottom: 5mm; }
-  table { break-inside: avoid; }
-  tr, li { break-inside: avoid; }
-
-  .section > h2 {
-    font-size: 9.5pt;
-    text-transform: uppercase;
-    letter-spacing: .3px;
-    color: #1c2b4a;
-    border-bottom: 1px solid #e2e6ec;
-    padding-bottom: 1.5mm;
-    margin: 0 0 2.5mm;
+    line-height: 1.35;
   }
   table { width: 100%; border-collapse: collapse; }
-  th {
-    text-align: left; font-size: 7.5pt; text-transform: uppercase;
-    color: #6b7280; border-bottom: 1px solid #e2e6ec; padding: 1.5mm 2mm;
-    background: #f7f8fa;
+  td, th { vertical-align: top; }
+
+  /* ---------- Masthead ---------------------------------------------- */
+  .masthead { margin-bottom: 3mm; }
+  .masthead td { vertical-align: top; border: 0; padding: 0; }
+  .masthead .logo img { height: 11mm; }
+  .masthead .service {
+    text-align: right; font-size: 7.5pt; color: #16325c; line-height: 1.45;
   }
-  td { padding: 1.8mm 2mm; border-bottom: 1px solid #eef1f5; vertical-align: top; }
-  .meta { width: 100%; }
-  .meta td { border: 0; padding: 1mm 2mm 1mm 0; }
-  .meta .label { color: #6b7280; font-size: 7.5pt; text-transform: uppercase; width: 32%; }
+  .masthead .service strong {
+    display: block; font-size: 8pt; text-transform: uppercase;
+    letter-spacing: .2px;
+  }
+  .masthead .service span { color: #6b7787; }
+
+  .doc-title {
+    text-align: center;
+    font-size: 16pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .2px;
+    color: #16325c;
+    margin: 4mm 0 1mm;
+    line-height: 1.15;
+  }
+  .doc-subtitle {
+    text-align: center;
+    font-size: 10.5pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #1f7a3d;
+    margin: 0 0 4mm;
+  }
+
+  /* ---------- Meta strip -------------------------------------------- */
+  .metastrip {
+    border-top: 1px solid #dfe4ea;
+    border-bottom: 1px solid #dfe4ea;
+    padding: 2.5mm 0;
+    margin-bottom: 4mm;
+  }
+  .metastrip td { border: 0; padding: 0 2mm; vertical-align: middle; }
+  .metastrip .ico { width: 8mm; color: #16325c; }
+  .metastrip .k {
+    font-size: 7pt; color: #6b7787; display: block; margin-bottom: .4mm;
+  }
+  .metastrip .v { font-size: 9pt; font-weight: bold; color: #16325c; }
+  .metastrip .arrow { width: 6mm; text-align: center; color: #16325c; }
+
+  /* ---------- Section chrome ---------------------------------------- */
+  .section { margin-bottom: 4.5mm; break-inside: avoid; }
+  /* Deliberate pagination: the measures list, the checklist and the
+     signature each get their own page. Applied by the report templates,
+     which decide when a break would leave a page nearly empty. */
+  .break-after { break-after: page; }
+  .section-head { margin-bottom: 2.5mm; }
+  .section-head td { border: 0; padding: 0; vertical-align: middle; }
+  .section-head .num {
+    width: 13mm;
+    background: #16325c;
+    color: #ffffff;
+    font-size: 10pt;
+    font-weight: bold;
+    text-align: center;
+    padding: 1.6mm 0;
+  }
+  .section-head .title {
+    background: #f2f5f9;
+    color: #16325c;
+    font-size: 9pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    padding: 1.6mm 3mm;
+  }
+  /* Un-numbered heading, same weight as a section title. */
+  .sub-head {
+    font-size: 8pt; font-weight: bold; text-transform: uppercase;
+    letter-spacing: .3px; color: #16325c; margin: 0 0 1.5mm;
+  }
+
+  /* ---------- Data tables ------------------------------------------- */
+  .grid th {
+    font-size: 6.8pt; text-transform: uppercase; letter-spacing: .3px;
+    color: #6b7787; font-weight: bold; text-align: center;
+    padding: 1.8mm 2mm; border-bottom: 1.2px solid #dfe4ea;
+  }
+  .grid th.l, .grid td.l { text-align: left; }
+  .grid td {
+    padding: 2.2mm 2mm; border-bottom: 1px solid #eef1f5; font-size: 8pt;
+  }
+  /* Section 04 lists every control point and must still fit one page. */
+  .grid.compact td { padding: 1.15mm 2mm; font-size: 7.3pt; }
+  .grid.compact th { padding: 1.4mm 2mm; }
+  .grid td.c, .grid th.c { text-align: center; }
+  .grid .theme { font-weight: bold; color: #16325c; }
+  .grid .theme-cell td { border: 0; padding: 0; vertical-align: middle; }
+  .grid .theme-cell .ico { width: 6mm; }
+  .grid tr { break-inside: avoid; }
+
+  /* ---------- Pills -------------------------------------------------- */
   .pill {
-    display: inline-block; padding: 0.6mm 2.5mm; border-radius: 6pt;
-    font-size: 8pt; font-weight: bold; border: 1px solid;
+    display: inline-block; padding: 1mm 3mm; border-radius: 3pt;
+    font-size: 7.5pt; font-weight: bold; text-transform: uppercase;
+    color: #ffffff; letter-spacing: .2px; white-space: nowrap;
   }
-  .pill.vert  { background: #e9f5ec; color: #1f6b34; border-color: #2e8b45; }
-  .pill.jaune { background: #fdf4e1; color: #8a6100; border-color: #e2a222; }
-  .pill.rouge { background: #fdeaea; color: #d32f2f; border-color: #d32f2f; }
-  .footer-block {
-    margin-top: 6mm; border-top: 1px solid #e2e6ec; padding-top: 2.5mm;
-    font-size: 7.5pt; color: #6b7280; break-inside: avoid;
+  .pill.vert   { background: #1a7a3c; }
+  .pill.jaune  { background: #efb01f; }
+  .pill.rouge  { background: #e02b20; }
+  .pill.closed { background: #1a7a3c; }
+  .pill.open   { background: #efb01f; }
+  .pill.not_done { background: #e02b20; }
+  .status-open { color: #d97706; font-weight: bold; }
+
+  /* ---------- Appreciation card -------------------------------------- */
+  .appr-card {
+    border: 1px solid #dfe4ea; border-radius: 4pt; padding: 3mm;
   }
-  .legend { font-size: 7.5pt; color: #6b7280; margin-top: 2mm; }
-  .obs { white-space: pre-wrap; }
+  /* The card carries a wash of the level that actually applies, so the
+     verdict is readable before a single word is. */
+  .appr-card.tint-vert  { background: #f1f8f3; border-color: #cfe3d6; }
+  .appr-card.tint-jaune { background: #fdf8ec; border-color: #f2e3bd; }
+  .appr-card.tint-rouge { background: #fdf1f0; border-color: #f3cfcc; }
+  .appr-card .card-title {
+    text-align: center; font-size: 8.5pt; font-weight: bold;
+    text-transform: uppercase; color: #16325c; margin-bottom: 2.5mm;
+    letter-spacing: .3px;
+  }
+  .appr-row td {
+    border: 0; padding: 1mm 0; vertical-align: middle;
+  }
+  .appr-row .marker {
+    width: 4mm; color: #16325c; font-size: 11pt; font-weight: bold;
+    text-align: center;
+  }
+  .appr-block {
+    width: 29mm; text-align: center; color: #ffffff; font-weight: bold;
+    font-size: 8.5pt; text-transform: uppercase; padding: 2.8mm 1mm;
+    border-radius: 3pt;
+  }
+  .appr-block.vert  { background: #1a7a3c; }
+  .appr-block.jaune { background: #efb01f; }
+  .appr-block.rouge { background: #e02b20; }
+  .appr-row td.appr-desc {
+    padding-left: 4mm; font-size: 7.8pt; color: #2b3440; text-align: left;
+  }
+  /* Only the level that applies keeps its full colour; the other two
+     drop to a pastel so the card still reads as the legend without
+     competing with the verdict. */
+  .appr-row.inactive .appr-block.vert  { background: #cfe3d6; color: #83998c; }
+  .appr-row.inactive .appr-block.jaune { background: #f7e7bf; color: #a39273; }
+  .appr-row.inactive .appr-block.rouge { background: #f5d2cf; color: #a67d7a; }
+  .appr-row.active .appr-desc { font-weight: bold; color: #16325c; }
+  .appr-row.inactive .appr-desc { color: #8a94a3; }
+
+  /* ---------- Key/value list (section 01, left column) ---------------- */
+  .kv td { border: 0; padding: 1.4mm 0; vertical-align: top; }
+  .kv .ico { width: 7mm; color: #16325c; }
+  .kv .k {
+    font-size: 8pt; font-weight: bold; color: #16325c; display: block;
+  }
+  .kv .v { font-size: 8pt; color: #2b3440; }
+
+  /* ---------- Note cards --------------------------------------------- */
+  .cards { break-inside: avoid; }
+  .cards td { border: 0; padding: 0; vertical-align: top; }
+  .cards .gap { width: 4mm; }
+  .note-card {
+    border: 1px solid #dfe4ea; border-radius: 4pt; padding: 2.5mm 3mm;
+    height: 100%;
+  }
+  .note-card .h { margin-bottom: 1.2mm; }
+  .note-card .h td { border: 0; padding: 0; vertical-align: middle; }
+  .note-card .h .ico { width: 6mm; color: #16325c; }
+  .note-card .h .t {
+    font-size: 7.8pt; font-weight: bold; text-transform: uppercase;
+    color: #16325c; letter-spacing: .3px;
+  }
+  .note-card p { margin: 0; font-size: 7.8pt; white-space: pre-wrap; }
+
+  /* ---------- Legends ------------------------------------------------ */
+  .legend { margin-top: 2.5mm; }
+  .legend td { border: 0; padding: 0 2mm 0 0; vertical-align: middle;
+               font-size: 7.3pt; color: #6b7787; }
+  .legend .lab {
+    font-size: 7.3pt; font-weight: bold; text-transform: uppercase;
+    color: #16325c; letter-spacing: .3px; white-space: nowrap;
+  }
+
+  /* ---------- Signature block ---------------------------------------- */
+  .signature { margin-top: 5mm; break-inside: avoid; }
+  .signature td { border: 0; padding: 0; vertical-align: top; }
+  .sig-card { border: 1px solid #dfe4ea; border-radius: 4pt; padding: 3mm; }
+  .sig-card .t {
+    font-size: 7.8pt; font-weight: bold; text-transform: uppercase;
+    color: #16325c; letter-spacing: .3px; margin-bottom: 2mm;
+  }
+  .sig-card .line { font-size: 8pt; margin-bottom: 2.5mm; }
+  /* Left blank on purpose: whether the signature ends up handwritten or
+     a pasted image is still open, so the space suits both. */
+  .sig-space {
+    border-bottom: 1px solid #c8cfd8; height: 17mm; margin: 1mm 0 2.5mm;
+  }
+  .scale-row td { border: 0; padding: .8mm 0; vertical-align: middle; }
+  .scale-row .p { width: 20mm; }
+  .scale-row .d { font-size: 7.3pt; padding-left: 2.5mm; }
+
+  .obs { white-space: pre-wrap; margin: 0 0 1.5mm; font-size: 8pt;
+         text-align: left; }
+  .obs.hl { color: #1f7a3d; font-weight: bold; }
+  .muted { color: #98a1ad; }
 </style>
 </head>
 <body>
 
-<h1>{% block heading %}{% endblock %}</h1>
-<p class="subtitle">
-  N° SATAC {{ chantier.satac_number }} &nbsp;·&nbsp; {{ chantier.site_name }}
-  &nbsp;·&nbsp; {{ chantier.commune.comnom }}
-</p>
+<table class="masthead">
+  <tr>
+    <td class="logo">
+      {% if logo_data_uri %}<img src="{{ logo_data_uri }}" alt="République et canton de Neuchâtel">{% endif %}
+    </td>
+    <td class="service">
+      <strong>Service de l'environnement<br>et de l'énergie (SENE)</strong>
+      <span>Département du développement territorial<br>et de l'environnement</span>
+    </td>
+  </tr>
+</table>
+
+<div class="doc-title">{% block heading %}{% endblock %}</div>
+<div class="doc-subtitle">Suivi de chantier</div>
+
+{% block metastrip %}{% endblock %}
 
 {% block content %}{% endblock %}
 
-<div class="footer-block">
-  <table class="meta">
-    <tr>
-      <td>
-        <strong>Inspecteur SENE :</strong>
-        {{ report.inspector.get_full_name|default:report.inspector.username }}
-        {% if report.signature_date %}
-          &nbsp;·&nbsp; Signé le {{ report.signature_date|date:"d.m.Y" }}
-        {% endif %}
-      </td>
-      <td style="text-align:right">www.ne.ch/sene</td>
-    </tr>
-  </table>
-  Service de l'environnement et de l'énergie (SENE) – Rue du Tombet 24 – 2034 Peseux
-  <div class="legend">
-    <strong>Système d'appréciation :</strong>
-    Conforme — exigences respectées ·
-    Écarts mineurs — un point non conforme ·
-    Non conforme — plusieurs points non conformes.
-  </div>
-</div>
+<table class="signature">
+  <tr>
+    <td style="width:44%">
+      <div class="sig-card">
+        <div class="t">Inspecteur SENE</div>
+        <div class="line">{{ report.inspector.get_full_name|default:report.inspector.username }}</div>
+        <div class="line">Signature :</div>
+        <div class="sig-space"></div>
+        <div class="line">Date :
+          {% if report.signature_date %}{{ report.signature_date|date:"d.m.Y" }}
+          {% else %}{{ report_date|date:"d.m.Y" }}{% endif %}
+        </div>
+      </div>
+    </td>
+    <td style="width:4%"></td>
+    <td style="width:52%">
+      <div class="sig-card">
+        <div class="t">Système d'appréciation</div>
+        <table>
+          {% for level in appreciation_scale %}
+            <tr class="scale-row">
+              <td class="p"><span class="pill {{ level.value }}">{{ level.label }}</span></td>
+              <td class="d">{{ level.description }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </td>
+  </tr>
+</table>
 
 </body>
 </html>

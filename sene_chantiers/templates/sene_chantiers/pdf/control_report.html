@@ -3,111 +3,248 @@
 {% block title %}Rapport de contrôle environnemental — {{ chantier.satac_number }}{% endblock %}
 {% block heading %}Rapport de contrôle environnemental{% endblock %}
 
+{% block metastrip %}
+<table class="metastrip">
+  <tr>
+    <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="calendar" %}</td>
+    <td><span class="k">Date du contrôle</span>
+        <span class="v">{{ report.control_date|date:"d.m.Y" }}</span></td>
+
+    <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="cloud" %}</td>
+    <td><span class="k">Conditions météo</span>
+        <span class="v">{{ report.weather_condition.label }}{% if report.temperature %} – {{ report.temperature }} °C{% endif %}</span></td>
+
+    <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="buildings" %}</td>
+    <td><span class="k">Phase des travaux</span>
+        <span class="v">{{ report.construction_phase.label }}</span></td>
+
+    <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="calendar-check" %}</td>
+    <td><span class="k">Prochain contrôle prévu</span>
+        <span class="v">{% if report.next_control_date %}{{ report.next_control_date|date:"d.m.Y" }}{% else %}—{% endif %}</span></td>
+  </tr>
+</table>
+{% endblock %}
+
 {% block content %}
 
+{# ---------- 01 ---------------------------------------------------- #}
 <div class="section">
-  <h2>01 &nbsp; Informations générales</h2>
-  <table class="meta">
-    <tr><td class="label">Date du contrôle</td><td>{{ report.control_date|date:"d.m.Y" }}</td>
-        <td class="label">Conditions météo</td><td>{{ report.weather_condition.label }}</td></tr>
-    <tr><td class="label">Température</td>
-        <td>{% if report.temperature %}{{ report.temperature }} °C{% else %}—{% endif %}</td>
-        <td class="label">Phase des travaux</td><td>{{ report.construction_phase.label }}</td></tr>
-    <tr><td class="label">Adresse</td><td>{{ chantier.adresse }}</td>
-        <td class="label">Commune</td><td>{{ chantier.commune.comnom }}</td></tr>
-    <tr><td class="label">Maître d'ouvrage</td><td>{{ chantier.maitre_ouvrage }}</td>
-        <td class="label">Entreprise générale</td>
-        <td>{{ chantier.entreprise_generale|default:"—" }}</td></tr>
-    <tr><td class="label">Appréciation globale</td>
-        <td colspan="3">
-          <span class="pill {{ report.global_appreciation }}">
-            {{ report.get_global_appreciation_display }}
-          </span>
-        </td></tr>
-    <tr><td class="label">Prochain contrôle prévu</td>
-        <td colspan="3">
-          {% if report.next_control_date %}{{ report.next_control_date|date:"d.m.Y" }}
-          {% else %}—{% endif %}
-        </td></tr>
+  <table class="section-head">
+    <tr><td class="num">01</td><td class="title">Informations générales</td></tr>
+  </table>
+
+  <table>
+    <tr>
+      <td style="width:50%; padding-right:4mm; vertical-align:top;">
+        <table class="kv">
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="pin" %}</td>
+            <td><span class="k">Chantier</span>
+                <span class="v">{{ chantier.site_name }}</span></td>
+          </tr>
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="clipboard" %}</td>
+            <td><span class="k">N° SATAC</span>
+                <span class="v">{{ chantier.satac_number }}</span></td>
+          </tr>
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="pin" %}</td>
+            <td><span class="k">Adresse</span>
+                <span class="v">{{ chantier.adresse|default:"—" }}</span></td>
+          </tr>
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="buildings" %}</td>
+            <td><span class="k">Commune</span>
+                <span class="v">{{ chantier.commune.comnom }}</span></td>
+          </tr>
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="person" %}</td>
+            <td><span class="k">Maître d'ouvrage</span>
+                <span class="v">{{ chantier.maitre_ouvrage }}</span></td>
+          </tr>
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="company" %}</td>
+            <td><span class="k">Entreprise générale</span>
+                <span class="v">{{ chantier.entreprise_generale|default:"—" }}</span></td>
+          </tr>
+        </table>
+      </td>
+
+      <td style="width:50%; vertical-align:top;">
+        <div class="appr-card tint-{{ report.global_appreciation }}">
+          <div class="card-title">Appréciation globale du chantier</div>
+          <table>
+            {% for level in appreciation_scale %}
+              <tr class="appr-row {% if level.value == report.global_appreciation %}active{% else %}inactive{% endif %}">
+                <td class="marker">{% if level.value == report.global_appreciation %}&#9654;{% endif %}</td>
+                <td style="width:29mm">
+                  <div class="appr-block {{ level.value }}">{{ level.label }}</div>
+                </td>
+                <td class="appr-desc">{{ level.description }}</td>
+              </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </td>
+    </tr>
   </table>
 </div>
 
-<div class="section">
-  <h2>02 &nbsp; Synthèse par thème</h2>
-  <table>
+{# ---------- 02 ---------------------------------------------------- #}
+<div class="section{% if report.corrective_measures.exists %} break-after{% endif %}">
+  <table class="section-head">
+    <tr><td class="num">02</td><td class="title">Synthèse des thèmes contrôlés</td></tr>
+  </table>
+  <table class="grid">
     <thead>
-      <tr><th style="width:20%">Thème</th><th style="width:16%">Appréciation</th>
-          <th style="width:12%">Points contrôlés</th><th>Remarques principales</th></tr>
+      <tr>
+        <th class="l" style="width:22%">Thème</th>
+        <th style="width:18%">Appréciation</th>
+        <th style="width:14%">Points contrôlés</th>
+        <th class="l">Remarques principales</th>
+      </tr>
     </thead>
     <tbody>
       {% for row in theme_rows %}
         <tr>
-          <td>{{ row.assessment.theme.label }}</td>
-          <td><span class="pill {{ row.assessment.appreciation }}">
-            {{ row.assessment.get_appreciation_display }}</span></td>
-          <td>{{ row.checked }} / {{ row.total }}</td>
-          <td>{{ row.assessment.synthesis_remarks|default:"—" }}</td>
+          <td class="l theme">
+            <table class="theme-cell"><tr>
+              <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name=row.assessment.theme.code size=13 %}</td>
+              <td>{{ row.assessment.theme.label }}</td>
+            </tr></table>
+          </td>
+          <td class="c">
+            <span class="pill {{ row.assessment.appreciation }}">
+              {{ row.assessment.get_appreciation_display }}</span>
+          </td>
+          <td class="c">{{ row.checked }} / {{ row.total }}</td>
+          <td class="l">{{ row.assessment.synthesis_remarks|default:"—" }}</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+  <table class="legend">
+    <tr>
+      <td class="lab">Appréciation :</td>
+      {% for level in appreciation_scale %}
+        <td><span class="pill {{ level.value }}">{{ level.label }}</span></td>
+      {% endfor %}
+      <td style="width:100%"></td>
+    </tr>
+  </table>
 </div>
 
+{# ---------- 03 ---------------------------------------------------- #}
 <div class="section">
-  <h2>03 &nbsp; Mesures à prendre</h2>
-  {% if report.corrective_measures.exists %}
-    <table>
+  <table class="section-head">
+    <tr><td class="num">03</td><td class="title">Mesures à prendre</td></tr>
+  </table>
+  {% if theme_rows and report.corrective_measures.exists %}
+    <table class="grid">
       <thead>
-        <tr><th style="width:6%">N°</th><th>Mesure</th><th style="width:20%">Responsable</th>
-            <th style="width:14%">Échéance</th><th style="width:14%">Statut</th></tr>
+        <tr>
+          <th style="width:7%">N°</th>
+          <th class="l">Mesure</th>
+          <th style="width:18%">Responsable</th>
+          <th style="width:15%">Échéance</th>
+          <th style="width:14%">Statut</th>
+        </tr>
       </thead>
       <tbody>
         {% for measure in report.corrective_measures.all %}
           <tr>
-            <td>{{ measure.order }}</td>
-            <td>{{ measure.description }}</td>
-            <td>{{ measure.responsible }}</td>
-            <td>{{ measure.deadline|date:"d.m.Y" }}</td>
-            <td>{{ measure.get_status_display }}</td>
+            <td class="c">{{ measure.order }}</td>
+            <td class="l">{{ measure.description }}</td>
+            <td class="c">{{ measure.responsible }}</td>
+            <td class="c">{{ measure.deadline|date:"d.m.Y" }}</td>
+            <td class="c {% if measure.status != 'closed' %}status-open{% endif %}">
+              {{ measure.get_status_display }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
-    <p>Aucune mesure à prendre : le chantier est conforme.</p>
+    <p class="obs muted">Aucune mesure à prendre : le chantier est conforme.</p>
   {% endif %}
 </div>
 
-<div class="section">
-  <h2>Observations générales</h2>
-  <p class="obs">{{ report.observations_generales|default:"—" }}</p>
-</div>
+{# ---------- Observations / procédure ------------------------------- #}
+<table class="cards break-after" style="margin-bottom:4.5mm">
+  <tr>
+    <td style="width:48%">
+      <div class="note-card">
+        <table class="h">
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="chat" %}</td>
+            <td class="t">Observations générales</td>
+          </tr>
+        </table>
+        <p>{{ report.observations_generales|default:"—" }}</p>
+      </div>
+    </td>
+    <td class="gap"></td>
+    <td style="width:48%">
+      <div class="note-card">
+        <table class="h">
+          <tr>
+            <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name="clipboard" %}</td>
+            <td class="t">Procédure de contrôle</td>
+          </tr>
+        </table>
+        <p>{{ report.procedure_controle|default:"—" }}</p>
+      </div>
+    </td>
+  </tr>
+</table>
 
-<div class="section">
-  <h2>Procédure de contrôle</h2>
-  <p class="obs">{{ report.procedure_controle|default:"—" }}</p>
-</div>
-
-{% for block in detail_blocks %}
-  <div class="section">
-    <h2>04 &nbsp; {{ block.theme.label }}</h2>
-    <table>
-      <thead>
-        <tr><th>Point contrôlé</th><th style="width:18%">Conformité</th></tr>
-      </thead>
-      <tbody>
+{# ---------- 04 ---------------------------------------------------- #}
+<div class="section break-after" style="break-inside:auto">
+  <table class="section-head">
+    <tr><td class="num">04</td><td class="title">Détail des thèmes contrôlés</td></tr>
+  </table>
+  <table class="grid compact">
+    <thead>
+      <tr>
+        <th class="l" rowspan="2" style="width:13%">Thème</th>
+        <th class="l" rowspan="2" style="width:34%">Points contrôlés</th>
+        <th colspan="3" style="width:15%">Conformité</th>
+        <th class="l" rowspan="2" style="width:23%">Observations</th>
+        <th rowspan="2" style="width:15%">Appréciation</th>
+      </tr>
+      <tr>
+        <th style="width:5%">Oui</th>
+        <th style="width:5%">Non</th>
+        <th style="width:5%">N.A.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for block in detail_blocks %}
         {% for answer in block.answers %}
           <tr>
-            <td>{{ answer.control_point.label }}</td>
-            <td>{{ answer.get_conformity_display|default:"—" }}</td>
+            {% if forloop.first %}
+              <td class="l theme" rowspan="{{ block.answers|length }}">
+                <table class="theme-cell"><tr>
+                  <td class="ico">{% include "sene_chantiers/pdf/_icon.html" with name=block.theme.code size=13 %}</td>
+                  <td>{{ block.theme.label }}</td>
+                </tr></table>
+              </td>
+            {% endif %}
+            <td class="l">{{ answer.control_point.label }}</td>
+            <td class="c">{% if answer.conformity == "yes" %}<span style="color:#1a7a3c;font-weight:bold">&#10003;</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+            <td class="c">{% if answer.conformity == "no" %}<span style="color:#e02b20;font-weight:bold">&#10007;</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+            <td class="c">{% if answer.conformity == "na" %}<span style="color:#6b7787;font-weight:bold">&#10003;</span>{% else %}<span class="muted">-</span>{% endif %}</td>
+            {% if forloop.first %}
+              <td class="l" rowspan="{{ block.answers|length }}">
+                {{ block.observations|default:"—" }}</td>
+              <td class="c" rowspan="{{ block.answers|length }}">
+                <span class="pill {{ block.assessment.appreciation }}">
+                  {{ block.assessment.get_appreciation_display }}</span></td>
+            {% endif %}
           </tr>
         {% endfor %}
-      </tbody>
-    </table>
-    {% if block.observations %}
-      <p class="obs"><strong>Observations :</strong> {{ block.observations }}</p>
-    {% endif %}
-  </div>
-{% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}

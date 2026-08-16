@@ -8,7 +8,9 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from ..labels import appreciation_scale
 from ..models import (
+    Appreciation,
     EmailRecord,
     EmailStatus,
     EmailTemplate,
@@ -45,6 +47,29 @@ class PdfExportTest(MemberClientMixin, TestCase):
 
     def test_html_carries_no_photograph(self):
         """Les photos vont au courriel, jamais dans le rapport."""
+        photo = Photo(
+            control_report=self.report,
+            status=PhotoStatus.DONE,
+            caption="Légende de la photo",
+        )
+        photo.image.save("p.jpg", ContentFile(jpeg_bytes()), save=True)
+
+        html = pdf.render_html(
+            "sene_chantiers/pdf/control_report.html",
+            pdf._control_report_context(self.report),
+        )
+        self.assertNotIn(photo.image.name, html)
+        self.assertNotIn("Légende de la photo", html)
+        self.assertNotIn("file://", html)
+        self.assertIn("Rapport de contrôle environnemental", html)
+        self.assertIn("Mesures à prendre", html)
+
+    def test_the_only_embedded_image_is_the_logo(self):
+        """Le gabarit embarque le logo, et rien d'autre.
+
+        Une photo embarquée se verrait ici : le service ne résout aucune
+        URL, donc toute image du PDF est forcément une data URI.
+        """
         photo = Photo(control_report=self.report, status=PhotoStatus.DONE)
         photo.image.save("p.jpg", ContentFile(jpeg_bytes()), save=True)
 
@@ -52,10 +77,55 @@ class PdfExportTest(MemberClientMixin, TestCase):
             "sene_chantiers/pdf/control_report.html",
             pdf._control_report_context(self.report),
         )
-        self.assertNotIn("data:image", html)
-        self.assertNotIn("file://", html)
-        self.assertIn("Rapport de contrôle environnemental", html)
-        self.assertIn("Mesures à prendre", html)
+        self.assertEqual(html.count("data:image"), 1)
+        self.assertIn("data:image/png;base64,", html)
+
+    def test_logo_is_inlined_rather_than_linked(self):
+        # A {% static %} URL would render as a silently missing image.
+        self.assertTrue(pdf.logo_data_uri().startswith("data:image/png;base64,"))
+
+    def _control_html(self):
+        return pdf.render_html(
+            "sene_chantiers/pdf/control_report.html",
+            pdf._control_report_context(self.report),
+        )
+
+    def test_measures_checklist_and_signature_each_start_a_page(self):
+        """Three deliberate breaks: after 02, after 03, after 04."""
+        self.assertEqual(self._control_html().count('break-after"'), 3)
+
+    def test_a_compliant_first_control_keeps_its_short_sections_together(self):
+        """With nothing to prescribe, section 03 must not claim a page.
+
+        The break after 02 is conditional for exactly this case: a
+        compliant control would otherwise print a page holding one line.
+        """
+        self.report.corrective_measures.all().delete()
+        html = self._control_html()
+        self.assertEqual(html.count('break-after"'), 2)
+        self.assertIn("Aucune mesure à prendre", html)
+
+    def test_followup_splits_after_the_measures_table(self):
+        followup = make_followup(self.chantier)
+        html = pdf.render_html(
+            "sene_chantiers/pdf/corrective_measure_report.html",
+            {
+                "report": followup,
+                "chantier": self.chantier,
+                "first_control_date": self.report.control_date,
+                "observations": [],
+                "report_date": followup.follow_up_date,
+                "appreciation_scale": appreciation_scale("followup"),
+                "conclusion_text": "",
+                "logo_data_uri": "",
+            },
+        )
+        self.assertEqual(html.count('break-after"'), 1)
+
+    def test_appreciation_card_is_tinted_with_the_level_in_force(self):
+        self.report.global_appreciation = Appreciation.ROUGE
+        self.report.save()
+        self.assertIn("appr-card tint-rouge", self._control_html())
 
     def test_print_rules_are_present(self):
         html = pdf.render_html(

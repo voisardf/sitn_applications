@@ -28,6 +28,41 @@ EMAIL_TEMPLATE_APPRECIATION = {
 }
 
 
+# The long-form sentence printed beside each level in the PDF's
+# "appréciation globale" card. Confirmed copy (Decision #2); the wording
+# differs between the two report types because one judges the site and the
+# other judges the measures.
+APPRECIATION_DESCRIPTIONS = {
+    "control": {
+        Appreciation.VERT: _("Le chantier respecte les exigences légales."),
+        Appreciation.JAUNE: _("Certains aspects ne sont pas maîtrisés mais "
+                              "sans conséquence majeure."),
+        Appreciation.ROUGE: _("Non-conformités établies, à corriger "
+                              "rapidement."),
+    },
+    "followup": {
+        Appreciation.VERT: _("Toutes les mesures correctives ont été "
+                             "réalisées."),
+        Appreciation.JAUNE: _("Une partie des mesures a été réalisée. Des "
+                              "compléments restent à effectuer."),
+        Appreciation.ROUGE: _("Les mesures n'ont pas été réalisées ou "
+                              "demeurent insuffisantes."),
+    },
+}
+
+
+def appreciation_scale(kind):
+    """The three levels in order, for the PDF card and the footer legend."""
+    return [
+        {
+            "value": value,
+            "label": Appreciation(value).label,
+            "description": APPRECIATION_DESCRIPTIONS[kind][value],
+        }
+        for value in (Appreciation.VERT, Appreciation.JAUNE, Appreciation.ROUGE)
+    ]
+
+
 def appreciation_label(value):
     """Label of an appreciation, or a placeholder when there is no report."""
     if not value:
