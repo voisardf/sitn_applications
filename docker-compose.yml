@@ -10,6 +10,9 @@ services:
     restart: unless-stopped
     ports:
       - "${DOCKER_PORT}:8000"
+    networks:
+      - default
+      - sitn_pdf
     volumes:
       - ${UPLOAD_DATA_PATH}:/upload:rw
       - ${DATA_PATH}:/data:ro
@@ -30,3 +33,22 @@ services:
     volumes:
       - ${UPLOAD_DATA_PATH}:/upload:rw
       - ${DATA_PATH}:/data:rw
+
+# Shared with the WeasyPrint container that renders the sene_chantiers
+# PDFs, which lives outside this compose project.
+#
+# It has to be external: `deploy` runs `docker compose down -v`, which
+# would delete a compose-managed network and silently strip WeasyPrint of
+# its route on every deploy. An external network is not compose's to
+# remove, so the link survives.
+#
+# Reaching the service through the host instead (a published port on the
+# Docker host) does not work here: firewalld blocks traffic from the
+# bridge networks to host ports, so container-to-host is refused even
+# though the port is bound and answers from the host itself.
+#
+# One-time prerequisite on every Docker host that runs this stack:
+#     docker network create sitn_pdf
+networks:
+  sitn_pdf:
+    external: true
