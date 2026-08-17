@@ -17,6 +17,12 @@ section 04 depends on.
   @page {
     size: A4;
     margin: 13mm 12mm 16mm 12mm;
+    /* Temporary prototype watermark — remove with the rule that builds it
+       in services/pdf.py once the app is in real service. */
+    background-image: url("{{ watermark_data_uri }}");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
     @bottom-left {
       content: "Service de l'environnement et de l'énergie (SENE) – Rue du Tombet 24 – 2034 Peseux";
       font-family: Helvetica, Arial, sans-serif;

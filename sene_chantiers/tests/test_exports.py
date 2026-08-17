@@ -1,5 +1,6 @@
 """Exports PDF et Excel."""
 
+import base64
 import io
 from unittest.mock import patch
 
@@ -64,8 +65,8 @@ class PdfExportTest(MemberClientMixin, TestCase):
         self.assertIn("Rapport de contrôle environnemental", html)
         self.assertIn("Mesures à prendre", html)
 
-    def test_the_only_embedded_image_is_the_logo(self):
-        """Le gabarit embarque le logo, et rien d'autre.
+    def test_the_only_embedded_images_are_the_logo_and_watermark(self):
+        """Le gabarit embarque le logo et le filigrane, rien d'autre.
 
         Une photo embarquée se verrait ici : le service ne résout aucune
         URL, donc toute image du PDF est forcément une data URI.
@@ -77,8 +78,21 @@ class PdfExportTest(MemberClientMixin, TestCase):
             "sene_chantiers/pdf/control_report.html",
             pdf._control_report_context(self.report),
         )
-        self.assertEqual(html.count("data:image"), 1)
-        self.assertIn("data:image/png;base64,", html)
+        self.assertEqual(html.count("data:image"), 2)
+        self.assertIn("data:image/png;base64,", html)      # logo
+        self.assertIn("data:image/svg+xml;base64,", html)  # filigrane
+
+    def test_prototype_watermark_is_present_on_every_page(self):
+        """Temporaire : à retirer avec le bandeau web à la mise en service."""
+        html = pdf.render_html(
+            "sene_chantiers/pdf/control_report.html",
+            pdf._control_report_context(self.report),
+        )
+        # Posé en fond de @page, donc répété sur chaque page sans avoir à
+        # l'insérer dans le flux.
+        self.assertIn("background-image", html)
+        self.assertIn("PROTOTYPE", base64.b64decode(
+            pdf.watermark_data_uri().split("base64,", 1)[1]).decode())
 
     def test_logo_is_inlined_rather_than_linked(self):
         # A {% static %} URL would render as a silently missing image.

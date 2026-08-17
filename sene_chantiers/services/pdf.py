@@ -30,6 +30,30 @@ TIMEOUT = 60
 LOGO_PATH = Path(settings.BASE_DIR) / "static" / "images" / "logo_ne.png"
 
 
+# --- Temporary: prototype watermark ---------------------------------------
+# Marks these PDFs as not coming from the productive version, like the
+# ribbon on the web pages. Delete this function, its context entries and
+# the @page rule in pdf/_base.html once the app goes into real service.
+#
+# Drawn as an SVG page background rather than a rotated element in the
+# flow: a `position: fixed` div wide enough to carry the word sticks out
+# of the page box once rotated, and WeasyPrint crops it, so the word came
+# out cut at both corners. A background covers the page box exactly.
+_WATERMARK_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 297'>"
+    "<text x='105' y='150' fill='#e7ebf0' text-anchor='middle'"
+    " font-family='Helvetica, Arial, sans-serif' font-size='26'"
+    " font-weight='bold' letter-spacing='2'"
+    " transform='rotate(-45 105 150)'>PROTOTYPE</text></svg>"
+)
+
+
+@functools.lru_cache(maxsize=1)
+def watermark_data_uri():
+    encoded = base64.b64encode(_WATERMARK_SVG.encode("utf-8")).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
 @functools.lru_cache(maxsize=1)
 def logo_data_uri():
     """The cantonal logo, inlined.
@@ -125,6 +149,7 @@ def _control_report_context(report):
         "report_date": report.control_date,
         "appreciation_scale": appreciation_scale("control"),
         "logo_data_uri": logo_data_uri(),
+        "watermark_data_uri": watermark_data_uri(),
     }
 
 
@@ -156,6 +181,7 @@ def corrective_measure_report_pdf(report):
             "appreciation_scale": scale,
             "conclusion_text": conclusion,
             "logo_data_uri": logo_data_uri(),
+            "watermark_data_uri": watermark_data_uri(),
         },
     )
     return html_to_pdf(html)
