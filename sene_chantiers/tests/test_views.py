@@ -1,13 +1,17 @@
 """Vues : récapitulatif, rapport initial et rapport de suivi."""
 
+import json
+import re
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from django.utils import timezone
 
+from ..labels import followup_conclusion_lines
 from ..models import (
     Appreciation,
     CorrectiveMeasureReport,
@@ -29,6 +33,7 @@ from .factories import (
     TODAY,
     make_chantier,
     make_control_report,
+    make_followup,
     make_measure,
     make_user,
 )
@@ -271,6 +276,50 @@ class CorrectiveMeasureReportViewTest(MemberClientMixin, TestCase):
 # ---------------------------------------------------------------------------
 # Sécurité : isolation entre onglets
 # ---------------------------------------------------------------------------
+
+
+class ConclusionTextSourceTest(MemberClientMixin, TestCase):
+    """Le texte de conclusion n'existe qu'à un seul endroit.
+
+    Il vivait en double — une fois dans `labels.py` pour le PDF, une fois
+    dans un littéral JS pour l'aperçu du formulaire — et les deux avaient
+    déjà divergé (« restent » contre « demeurent » insuffisantes).
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999310)
+        make_control_report(
+            chantier=self.chantier, global_appreciation=Appreciation.ROUGE
+        )
+        self.followup = make_followup(self.chantier)
+
+    def test_page_serves_the_server_side_wording(self):
+        response = self.client.get(
+            reverse(
+                "sene_chantiers:corrective_measure_report_edit",
+                args=[self.followup.pk],
+            )
+        )
+        self.assertContains(response, 'id="conclusion-lines"')
+        # json_script escapes non-ASCII, so parse rather than substring-match.
+        payload = re.search(
+            r'id="conclusion-lines" type="application/json">(.*?)</script>',
+            response.content.decode(),
+            re.S,
+        )
+        self.assertIsNotNone(payload)
+        self.assertEqual(json.loads(payload.group(1)), followup_conclusion_lines())
+
+    def test_the_wording_is_not_restated_in_the_template(self):
+        source = (
+            settings.BASE_DIR
+            / "sene_chantiers/templates/sene_chantiers"
+            / "corrective_measure_report.html"
+        )
+        body = source.read_text(encoding="utf-8")
+        self.assertNotIn("Toutes les mesures correctives ont été", body)
+        self.assertIn("conclusion-lines", body)
 
 
 class CaseClosureTest(MemberClientMixin, TestCase):

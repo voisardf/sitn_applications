@@ -325,18 +325,15 @@
 
 {% block scripts %}
 <script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
+{{ conclusion_lines|json_script:"conclusion-lines" }}
 <script>
 (function () {
   // Mirrors the server-side follow-up cascade so the conclusion reacts as
   // statuses change. The server recomputes authoritatively on save.
-  const TEXT = {
-    vert: ['Toutes les mesures correctives ont été réalisées.',
-           'Les non-conformités relevées sont levées.'],
-    jaune: ['Une partie des mesures a été réalisée.',
-            'Des travaux restent à effectuer. Un nouveau contrôle est prévu.'],
-    rouge: ['Les mesures n’ont pas été réalisées ou restent insuffisantes.',
-            'Un nouveau contrôle est prévu pour vérifier la mise en conformité.']
-  };
+  // Wording comes from labels.py, the same source the PDF conclusion
+  // uses, so the two cannot drift apart.
+  const TEXT = JSON.parse(
+    document.getElementById('conclusion-lines').textContent);
 
   function compute() {
     const values = [...document.querySelectorAll('.sc-followup-status')]

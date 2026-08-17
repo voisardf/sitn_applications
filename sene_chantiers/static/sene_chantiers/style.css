@@ -44,6 +44,53 @@ body {
   color: var(--text);
 }
 
+/* --------------------------------------------------- bandeau prototype */
+
+/* Corner ribbon marking the app as a prototype, on every page. Taken
+   from ppe/static/ppe/style.css, where it sits commented out, and kept
+   visually identical so the two apps flag themselves the same way.
+   Three additions it needs as a live overlay:
+     - z-index, or page content that establishes its own stacking
+       context (the sticky header, modals) covers it;
+     - pointer-events: none, so the ribbon cannot swallow a click on
+       whatever sits beneath it;
+     - overflow-x on the page, because the ribbon is deliberately wider
+       than its corner and would otherwise add a horizontal scrollbar.
+   Delete this block — not just the banner text — when the app goes into
+   real service. */
+html {
+  overflow-x: hidden;
+}
+
+body::after {
+  content: "Prototype";
+  position: fixed;
+  width: 300px;
+  height: 40px;
+  background: #d62f2f;
+  top: 50px;
+  right: -80px;
+  text-align: center;
+  font-size: 1.2em;
+  font-family: "Gill Sans", sans-serif;
+  text-transform: uppercase;
+  font-weight: bold;
+  color: #fff;
+  line-height: 41px;
+  transform: rotate(45deg);
+  /* Bootstrap's fixed layer: above the app's sticky header (1020) but
+     below the modal backdrop (1050), so an open dialog covers it rather
+     than the ribbon floating on top of it. */
+  z-index: 1030;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+
+/* The ribbon is decoration; it must not be read aloud or printed. */
+@media print {
+  body::after { display: none; }
+}
+
 /* ---------------------------------------------------------- header band */
 
 header {

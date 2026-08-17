@@ -30,6 +30,7 @@ from .labels import (
     appreciation_label,
     email_status_appreciation,
     email_status_label,
+    followup_conclusion_lines,
 )
 from .models import (
     Appreciation,
@@ -571,6 +572,9 @@ def corrective_measure_report_edit(request, pk):
             "read_only": read_only,
             "photo_kind": "suivi",
             "photo_max_mb": settings.SENE_CHANTIERS_PHOTO_MAX_SIZE_MB,
+            # Served as data rather than restated in the template's JS,
+            # which had already drifted from the server's wording.
+            "conclusion_lines": followup_conclusion_lines(),
         },
     )
 

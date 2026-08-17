@@ -51,6 +51,35 @@ APPRECIATION_DESCRIPTIONS = {
 }
 
 
+# Second line of the follow-up conclusion box, shown on the web form only:
+# it says what happens next, which the PDF states elsewhere. The first line
+# is the confirmed sentence in APPRECIATION_DESCRIPTIONS above.
+CONCLUSION_DETAIL = {
+    Appreciation.VERT: _("Les non-conformités relevées sont levées."),
+    Appreciation.JAUNE: _("Un nouveau contrôle est prévu afin de vérifier "
+                          "la mise en conformité complète."),
+    Appreciation.ROUGE: _("Un nouveau contrôle est prévu afin de vérifier "
+                          "la mise en conformité."),
+}
+
+
+def followup_conclusion_lines():
+    """The conclusion box text, keyed by appreciation value.
+
+    Served to the page as data so the form's live preview and the PDF read
+    from one definition. They were previously duplicated in a JS literal
+    and had already drifted apart, one saying "restent insuffisantes"
+    where the other said "demeurent insuffisantes".
+    """
+    return {
+        value: [
+            str(APPRECIATION_DESCRIPTIONS["followup"][value]),
+            str(CONCLUSION_DETAIL[value]),
+        ]
+        for value in (Appreciation.VERT, Appreciation.JAUNE, Appreciation.ROUGE)
+    }
+
+
 def appreciation_scale(kind):
     """The three levels in order, for the PDF card and the footer legend."""
     return [
