@@ -296,6 +296,64 @@ header > [class*="col-"] {
   word-break: break-word;
 }
 
+/* -------------------------------------------------- plan de situation */
+
+/* Carte en lecture seule, à droite des informations sur grand écran et
+   au-dessus d'elles sur mobile (l'ordre DOM garde le texte en premier,
+   `order-first` remonte la carte). */
+.sc-situation {
+  margin: 0;
+}
+
+.sc-situation-map {
+  position: relative;
+  min-height: 200px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #eef1f5;
+}
+
+/* Deux proportions selon la place disponible : les pages de consultation
+   ont peu de texte, le formulaire d'ouverture en a beaucoup. */
+.sc-situation-map--3-2 { aspect-ratio: 3 / 2; }
+.sc-situation-map--4-3 { aspect-ratio: 4 / 3; }
+
+.sc-situation-map .ol-attribution {
+  font-size: 10px;
+}
+
+.sc-situation-caption {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+/* Garde la carte visible pendant le défilement d'un formulaire long. */
+.sc-situation--sticky { position: sticky; top: 16px; }
+
+/* Aligne le haut de la carte sur le premier champ de saisie plutôt que
+   sur son étiquette : la hauteur d'une `.form-label` et sa marge. */
+.sc-situation--offset { margin-top: 30px; }
+
+@media (max-width: 991.98px) {
+  .sc-situation--sticky { position: static; }
+  .sc-situation--offset { margin-top: 0; }
+}
+
+/* Une seule colonne d'informations lorsqu'elles partagent la ligne avec
+   la carte : deux colonnes s'y tasseraient. */
+.sc-info-split .sc-meta {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+/* Sous 576 px, deux colonnes de 190 px et leurs gouttières dépassent la
+   largeur de l'écran et le texte se fait rogner. */
+@media (max-width: 575.98px) {
+  .sc-meta { grid-template-columns: 1fr; }
+}
+
 /* ------------------------------------------------------------ buttons */
 
 .sc-section .btn,

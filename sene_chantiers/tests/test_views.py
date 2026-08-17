@@ -489,3 +489,45 @@ class CourrielsListTest(MemberClientMixin, TestCase):
         )
         # Plus de bouton désactivé « étape à venir » dans cette colonne.
         self.assertNotContains(response, "étape à venir")
+
+
+class SituationMapTest(MemberClientMixin, TestCase):
+    """Le plan de situation n'apparaît que lorsqu'il y a une géométrie."""
+
+    def setUp(self):
+        super().setUp()
+        from django.contrib.gis.geos import Point
+
+        self.chantier = make_chantier(
+            satac_number=999320,
+            geom=Point(2558956, 1210120, srid=settings.DEFAULT_SRID),
+        )
+
+    def test_map_is_rendered_when_the_dossier_is_located(self):
+        response = self.client.get(
+            reverse("sene_chantiers:chantier_landing", args=[999320])
+        )
+        self.assertContains(response, "situation-map-config")
+        self.assertContains(response, "Coordonnées CH")
+        # Le fond est le plan de ville, pas le plan cadastral global.
+        self.assertContains(response, "plan_ville")
+        # La couche des permis vient du géoportail, symbologie comprise.
+        self.assertContains(response, "at034_autorisation_construire")
+
+    def test_no_map_block_at_all_without_geometry(self):
+        self.chantier.geom = None
+        self.chantier.save()
+        response = self.client.get(
+            reverse("sene_chantiers:chantier_landing", args=[999320])
+        )
+        # Ni carte, ni cadre vide : le texte prend toute la largeur.
+        self.assertNotContains(response, "situation-map-config")
+        self.assertNotContains(response, "sc-situation-map")
+        self.assertContains(response, "col-12")
+
+    def test_coordinates_use_the_swiss_separator(self):
+        from ..templatetags.sene_chantiers_extras import coord_ch
+
+        self.assertEqual(coord_ch(2558956), "2\u2019558\u2019956")
+        self.assertEqual(coord_ch(1210120.4), "1\u2019210\u2019120")
+        self.assertEqual(coord_ch(None), "")

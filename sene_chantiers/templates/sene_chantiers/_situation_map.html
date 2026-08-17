@@ -1,0 +1,22 @@
+{% comment %}
+Plan de situation : fond WMTS « plan de ville » et couche WMS des
+autorisations de construire, reprise telle quelle du géoportail — la
+symbologie reste donc celle que le personnel y connaît.
+
+Rendu par le tag {% templatetag openblock %} situation_map geom {% templatetag closeblock %}.
+Sans géométrie le tag ne transmet rien et ce gabarit reste vide : la
+section carte disparaît et le texte occupe toute la largeur, plutôt que
+d'afficher un cadre vide.
+{% endcomment %}
+{% load sene_chantiers_extras %}
+{% if geom %}
+<figure class="sc-situation{% if sticky %} sc-situation--sticky{% endif %}{% if offset %} sc-situation--offset{% endif %}">
+  <div class="sc-situation-map sc-situation-map--{{ ratio }}"
+       data-situation-map
+       aria-label="Plan de situation du chantier"></div>
+  <figcaption class="sc-situation-caption">
+    Coordonnées CH&nbsp;: {{ geom.x|coord_ch }}, {{ geom.y|coord_ch }}
+  </figcaption>
+</figure>
+{{ config|json_script:"situation-map-config" }}
+{% endif %}

@@ -1,6 +1,14 @@
 {% extends "sene_chantiers/base.html" %}
+{% load static sene_chantiers_extras %}
 
 {% block title %}Nouveau dossier — {{ satac_number }}{% endblock %}
+
+{% block head %}
+  {# OpenLayers, same CDN build Django's own GIS widgets use. #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.2.2/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.2.2/dist/ol.js" defer></script>
+  <script src="{% static 'sene_chantiers/situation_map.js' %}" defer></script>
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -26,6 +34,8 @@
         </div>
       </header>
         <div class="sc-section-body">
+          <div class="row g-4">
+          <div class="{% if satac_result.geom %}col-lg-7{% else %}col-12{% endif %}">
 
           <div class="mb-3">
             <label class="form-label">N° SATAC</label>
@@ -61,6 +71,18 @@
               {% endfor %}
             </div>
           {% endfor %}
+
+          </div>
+          {% if satac_result.geom %}
+            {% comment %}
+              4:3 ici : le formulaire est haut, la carte remplit mieux la
+              colonne. « offset » aligne son haut sur le premier champ.
+            {% endcomment %}
+            <div class="col-lg-5 order-first order-lg-last">
+              {% situation_map satac_result.geom ratio="4-3" sticky=True offset=True %}
+            </div>
+          {% endif %}
+          </div>
 
         </div>
       </section>

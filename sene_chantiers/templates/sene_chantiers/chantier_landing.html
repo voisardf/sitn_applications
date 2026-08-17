@@ -1,6 +1,14 @@
 {% extends "sene_chantiers/base.html" %}
+{% load static sene_chantiers_extras %}
 
 {% block title %}Suivi de chantier — {{ chantier.satac_number }}{% endblock %}
+
+{% block head %}
+  {# OpenLayers, same CDN build Django's own GIS widgets use. #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.2.2/ol.css">
+  <script src="https://cdn.jsdelivr.net/npm/ol@v7.2.2/dist/ol.js" defer></script>
+  <script src="{% static 'sene_chantiers/situation_map.js' %}" defer></script>
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -27,6 +35,8 @@
         </div>
       </header>
       <div class="sc-section-body">
+        <div class="row g-4 sc-info-split">
+        <div class="{% if chantier.geom %}col-lg-7{% else %}col-12{% endif %}">
         <dl class="sc-meta">
           <div>
             <div class="label">N° SATAC</div>
@@ -57,6 +67,13 @@
             <div class="value">{{ chantier.created_at|date:"d.m.Y" }}</div>
           </div>
         </dl>
+        </div>
+        {% if chantier.geom %}
+          <div class="col-lg-5 order-first order-lg-last">
+            {% situation_map chantier.geom %}
+          </div>
+        {% endif %}
+        </div>
       </div>
     </section>
 
