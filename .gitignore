@@ -144,3 +144,10 @@ db/*
 # Node (used only to rebuild vendored JS bundles, e.g. panoview/vendor_build/)
 node_modules/
 package-lock.json
+
+# sene_chantiers documentation — temporarily excluded.
+# The folder was moved here from outside the repo to put it under version
+# control. It is ignored until its contents have been reviewed file by
+# file for anything that should not be public. Remove this entry once
+# that review is done.
+sene_chantiers/doc/
