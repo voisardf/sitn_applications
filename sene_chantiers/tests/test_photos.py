@@ -2,6 +2,7 @@
 
 import io
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -132,3 +133,61 @@ class PhotoSanitizeTest(TestCase):
         cleaned = photo.image.read()
         photo.image.close()
         self.assertNotIn(b"script", cleaned)
+
+
+class PhotoUrlPrefixTest(MemberClientMixin, TestCase):
+    """Les URL du bloc photo doivent survivre au préfixe de script.
+
+    Les instances déployées tournent sous ROOTURL (« /apps_inter »), que
+    Django applique comme FORCE_SCRIPT_NAME. Un chemin écrit à la main
+    dans le JavaScript ignore ce préfixe : le téléversement échoue en 404
+    sur les serveurs et fonctionne parfaitement en local, ce qui rend la
+    panne difficile à attribuer.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999610)
+        self.report = make_control_report(chantier=self.chantier)
+
+    def _block(self):
+        response = self.client.get(
+            reverse("sene_chantiers:control_report_edit", args=[999610])
+        )
+        return response.content.decode()
+
+    def test_endpoints_are_rendered_by_django_not_the_script(self):
+        html = self._block()
+        for attr in ("data-url-upload", "data-url-status",
+                     "data-url-caption", "data-url-remove"):
+            self.assertIn(attr, html)
+
+    def test_script_builds_no_application_path_itself(self):
+        source = (
+            settings.BASE_DIR / "sene_chantiers/static/sene_chantiers/photos.js"
+        ).read_text(encoding="utf-8")
+        # Un seul chemin codé en dur suffit à casser les instances déployées.
+        self.assertNotIn("/sene_chantiers/", source)
+
+    def test_endpoints_match_django_url_resolution(self):
+        """Chaque URL du bloc est celle que Django résout.
+
+        C'est la garantie qui compte : puisqu'elles viennent de
+        `{% url %}`, elles portent le préfixe de script quel qu'il soit.
+        Vérifier le préfixe lui-même reviendrait à tester Django.
+        """
+        html = self._block()
+        expected = {
+            "data-url-upload": reverse(
+                "sene_chantiers:photo_upload",
+                kwargs={"kind": "controle", "pk": self.report.pk}),
+            "data-url-status": reverse(
+                "sene_chantiers:photo_status",
+                kwargs={"kind": "controle", "pk": self.report.pk}),
+            "data-url-caption": reverse(
+                "sene_chantiers:photo_caption", kwargs={"pk": 0}),
+            "data-url-remove": reverse(
+                "sene_chantiers:photo_delete", kwargs={"pk": 0}),
+        }
+        for attr, url in expected.items():
+            self.assertIn(f'{attr}="{url}"', html)

@@ -23,27 +23,52 @@
       {% endif %}
     </div>
 
-    <form method="post" novalidate id="control-report-form">
+    <form method="post" novalidate id="control-report-form"
+          data-completeness-guard>
       {% csrf_token %}
       {# Tab isolation: the server refuses a save whose SATAC does not match. #}
       <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
 
+      {% comment %}
+        Un champ obligatoire non rendu, ou rendu dans un autre onglet que
+        celui affiché, rendait l'échec totalement muet : la page se
+        réaffichait sans message et l'inspecteur croyait avoir enregistré.
+        Ce résumé rend l'échec visible quel que soit l'onglet fautif.
+      {% endcomment %}
+      {% if incomplete_sections %}
+        <div class="alert alert-danger" id="incomplete-warning">
+          <strong>Le rapport n'a pas été enregistré.</strong>
+          Il reste des informations obligatoires à compléter dans
+          {% for section in incomplete_sections %}
+            {% if not forloop.first %}{% if forloop.last %} et {% else %}, {% endif %}{% endif %}
+            <a href="#tab{{ section.code }}" class="alert-link"
+               data-goto-tab="tab{{ section.code }}">{{ section.code }} — {{ section.label }}</a>
+          {% endfor %}.
+          Les onglets concernés sont signalés ci-dessous. Pour interrompre
+          la saisie, utiliser « Enregistrer le brouillon ».
+        </div>
+      {% endif %}
+
       <ul class="nav nav-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab01"
-                  type="button" role="tab">01 &nbsp;Informations générales</button>
+                  type="button" role="tab"
+                  data-tab-code="tab01">01 &nbsp;Informations générales</button>
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab02"
-                  type="button" role="tab">02 &nbsp;Synthèse par thème</button>
+                  type="button" role="tab"
+                  data-tab-code="tab02">02 &nbsp;Synthèse par thème</button>
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab03"
-                  type="button" role="tab">03 &nbsp;Mesures à prendre</button>
+                  type="button" role="tab"
+                  data-tab-code="tab03">03 &nbsp;Mesures à prendre</button>
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab04"
-                  type="button" role="tab">04 &nbsp;Détail des thèmes</button>
+                  type="button" role="tab"
+                  data-tab-code="tab04">04 &nbsp;Détail des thèmes</button>
         </li>
       </ul>
 
@@ -361,6 +386,19 @@
                     </tbody>
                   </table>
                 </div>
+                {% if block.assessment_form %}
+                  <div class="sc-section-body">
+                    <label class="form-label"
+                           for="{{ block.assessment_form.detail_observations.id_for_label }}">
+                      Observations <span class="text-danger">*</span>
+                    </label>
+                    {{ block.assessment_form.detail_observations }}
+                    {{ block.assessment_form.detail_observations.errors }}
+                    <div class="form-text">
+                      Constats pour ce thème, repris dans le rapport PDF.
+                    </div>
+                  </div>
+                {% endif %}
               </div>
             </section>
           {% endfor %}
@@ -390,6 +428,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'sene_chantiers/report_completeness.js' %}" defer></script>
 <script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 <script>
 (function () {

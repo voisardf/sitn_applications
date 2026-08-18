@@ -10,7 +10,14 @@ def deadline_banner(request):
     Computed on read rather than stored, so it can never fall out of step
     with the measures themselves.
     """
-    if not request.path.startswith("/sene_chantiers/"):
+    # Ask the resolver which app served this request rather than matching
+    # the path. The deployed instances run under a script prefix (ROOTURL
+    # -> FORCE_SCRIPT_NAME), so request.path reads
+    # "/apps_inter/sene_chantiers/..." there and a startswith() check on
+    # "/sene_chantiers/" silently hides the banner everywhere but a
+    # developer machine.
+    match = getattr(request, "resolver_match", None)
+    if match is None or match.app_name != "sene_chantiers":
         return {}
     if not user_is_sene_chantiers_admin(getattr(request, "user", None)):
         return {}

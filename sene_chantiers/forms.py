@@ -110,14 +110,21 @@ class ControlReportForm(forms.ModelForm):
             "global_appreciation": forms.RadioSelect(),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, draft=False, **kwargs):
+        """`draft=True` makes every field optional.
+
+        A draft is explicitly allowed to be incomplete, and it has to
+        persist what has been typed so far. Validating it against the
+        normal required set means one empty field discards the whole form
+        and the inspector loses the work the button promised to keep.
+        """
         super().__init__(*args, **kwargs)
         # Only the temperature and the conditional next-control date may be
         # left empty; everything else is mandatory (spec 4.2).
         optional = {"temperature", "next_control_date", "signature_date",
                     "global_appreciation_is_manual_override"}
         for name, field in self.fields.items():
-            field.required = name not in optional
+            field.required = False if draft else name not in optional
             if name in ("weather_condition", "construction_phase"):
                 field.widget.attrs.setdefault("class", "form-select")
                 field.queryset = field.queryset.filter(is_active=True)

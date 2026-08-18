@@ -1,6 +1,20 @@
-{# Photo block, identical on both report forms: end of section 01. #}
+{% comment %}
+Photo block, identical on both report forms: end of section 01.
+
+The endpoints are rendered here with {% templatetag openblock %} url {% templatetag closeblock %}
+rather than assembled in JavaScript. Django prefixes them with
+FORCE_SCRIPT_NAME, which is empty locally but "/apps_inter" on the
+deployed instances; a path written by hand in the script misses that
+prefix and every upload 404s on the servers while working perfectly on a
+developer machine. The two per-photo routes carry a 0 placeholder that
+the script swaps for the real id.
+{% endcomment %}
 <section class="sc-section" id="photo-block"
-         data-kind="{{ photo_kind }}" data-report="{{ report.pk }}">
+         data-kind="{{ photo_kind }}" data-report="{{ report.pk }}"
+         data-url-upload="{% url 'sene_chantiers:photo_upload' kind=photo_kind pk=report.pk %}"
+         data-url-status="{% url 'sene_chantiers:photo_status' kind=photo_kind pk=report.pk %}"
+         data-url-caption="{% url 'sene_chantiers:photo_caption' pk=0 %}"
+         data-url-remove="{% url 'sene_chantiers:photo_delete' pk=0 %}">
   <header>
     <div class="sc-section-head-left">
       <span class="sc-badge"><i class="bi bi-camera"></i></span>

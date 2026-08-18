@@ -531,3 +531,211 @@ class SituationMapTest(MemberClientMixin, TestCase):
         self.assertEqual(coord_ch(2558956), "2\u2019558\u2019956")
         self.assertEqual(coord_ch(1210120.4), "1\u2019210\u2019120")
         self.assertEqual(coord_ch(None), "")
+
+
+class ScriptPrefixTest(MemberClientMixin, TestCase):
+    """L'application doit fonctionner sous un préfixe de script.
+
+    Les instances déployées tournent sous ROOTURL (« /apps_inter »).
+    Tout chemin écrit à la main ignore ce préfixe : la panne n'apparaît
+    que sur les serveurs, jamais en local, ce qui la rend coûteuse à
+    diagnostiquer. Deux régressions de ce type ont déjà eu lieu — le
+    téléversement de photos et ce bandeau.
+    """
+
+    def test_banner_does_not_depend_on_a_hardcoded_path(self):
+        """Le bandeau se décide sur le résolveur, pas sur request.path."""
+        source = (
+            settings.BASE_DIR / "sene_chantiers/context_processors.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn('request.path.startswith("/sene_chantiers/")', source)
+        self.assertIn("resolver_match", source)
+
+    def test_banner_is_shown_inside_the_app(self):
+        make_chantier(satac_number=999330)
+        response = self.client.get(
+            reverse("sene_chantiers:chantier_landing", args=[999330])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("sc_overdue_count", response.context)
+
+    def test_banner_is_absent_outside_the_app(self):
+        response = self.client.get("/admin/login/", follow=True)
+        self.assertNotIn("sc_overdue_count", response.context or {})
+
+    def test_no_template_writes_an_application_path_by_hand(self):
+        """Tout lien doit passer par {% url %} ou {% static %}."""
+        import re
+
+        root = settings.BASE_DIR / "sene_chantiers/templates"
+        offenders = []
+        for path in root.rglob("*.html"):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if re.search(r'(href|src|action)="/(sene_chantiers|assets)', line):
+                    offenders.append(f"{path.name}: {line.strip()[:60]}")
+        self.assertEqual(offenders, [])
+
+
+class ControlReportRoundTripTest(MemberClientMixin, TestCase):
+    """Remplir le formulaire comme un navigateur, enregistrer, relire.
+
+    Les autres tests construisent la charge utile à la main et passent
+    donc à côté d'un champ obligatoire que le gabarit ne rend pas : le
+    rapport ne pouvait alors jamais être enregistré, la page se
+    réaffichait sans message, et l'inspecteur retrouvait son rapport vide
+    et « Conforme ». Ici la charge utile est extraite du formulaire rendu.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999340)
+        self.url = reverse(
+            "sene_chantiers:control_report_edit", args=[999340]
+        )
+        self.client.post(
+            reverse("sene_chantiers:control_report_create", args=[999340])
+        )
+        self.report = ControlReport.objects.get(chantier=self.chantier)
+
+    def _payload_from_rendered_form(self):
+        html = self.client.get(self.url).content.decode()
+        data = {}
+        for m in re.finditer(r'<input[^>]*name="([^"]+)"[^>]*>', html):
+            tag, name = m.group(0), m.group(1)
+            if 'type="radio"' in tag or 'type="checkbox"' in tag:
+                if "checked" in tag:
+                    v = re.search(r'value="([^"]*)"', tag)
+                    data[name] = v.group(1) if v else "on"
+                else:
+                    data.setdefault(name, "")
+                continue
+            v = re.search(r'value="([^"]*)"', tag)
+            data[name] = v.group(1) if v else ""
+        for m in re.finditer(
+                r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', html, re.S):
+            name, body = m.group(1), m.group(2)
+            sel = (re.search(r'<option value="([^"]*)"[^>]*selected', body)
+                   or re.search(r'<option value="([^"]+)"', body))
+            data[name] = sel.group(1) if sel else ""
+        for m in re.finditer(
+                r'<textarea[^>]*name="([^"]+)"[^>]*>(.*?)</textarea>', html, re.S):
+            data[m.group(1)] = m.group(2).strip()
+        return data
+
+    def test_every_required_field_is_actually_rendered(self):
+        """Un champ obligatoire absent du gabarit rend le formulaire insoluble."""
+        data = self._payload_from_rendered_form()
+        for theme_index in range(Theme.objects.count()):
+            self.assertIn(f"themes-{theme_index}-synthesis_remarks", data)
+            self.assertIn(f"themes-{theme_index}-detail_observations", data)
+
+    def test_filling_the_form_saves_and_computes_the_appreciation(self):
+        data = self._payload_from_rendered_form()
+        answers = [k for k in data
+                   if k.startswith("answers-") and k.endswith("-conformity")]
+        for i, key in enumerate(answers):
+            data[key] = Conformity.NO if i == 0 else Conformity.YES
+        for key in list(data):
+            if key.startswith("themes-") and (
+                    key.endswith("-synthesis_remarks")
+                    or key.endswith("-detail_observations")):
+                data[key] = "Constat"
+        data["observations_generales"] = "Observation"
+        data["procedure_controle"] = "Procédure"
+
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 302)
+
+        self.report.refresh_from_db()
+        self.assertEqual(
+            self.report.control_point_answers.exclude(conformity="").count(),
+            self.report.control_point_answers.count(),
+        )
+        self.assertEqual(self.report.observations_generales, "Observation")
+        # Un « Non » : le rapport ne peut pas rester Conforme.
+        self.assertNotEqual(self.report.global_appreciation, Appreciation.VERT)
+
+    def test_a_rejected_save_says_so(self):
+        """L'échec doit être visible, quel que soit l'onglet fautif."""
+        data = self._payload_from_rendered_form()
+        for key in list(data):
+            if key.endswith("-detail_observations"):
+                data[key] = ""          # champ obligatoire laissé vide
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "pas été enregistré")
+
+
+class RequiredFieldsAreRenderedTest(MemberClientMixin, TestCase):
+    """Tout champ obligatoire doit exister dans le gabarit.
+
+    Un champ obligatoire que le gabarit ne rend pas rend le formulaire
+    insoluble : l'inspecteur ne peut pas le remplir, la validation échoue
+    à chaque envoi, et l'erreur n'a aucun élément où s'afficher. C'est
+    exactement ce qui bloquait le rapport de contrôle
+    (`ThemeAssessment.detail_observations`). Les tests qui construisent
+    leur charge utile à la main ne peuvent pas voir ce défaut.
+    """
+
+    @staticmethod
+    def _rendered_names(html):
+        names = set()
+        for pattern in (r'<input[^>]*name="([^"]+)"',
+                        r'<select[^>]*name="([^"]+)"',
+                        r'<textarea[^>]*name="([^"]+)"'):
+            names |= set(re.findall(pattern, html))
+        return names
+
+    def _assert_all_required_rendered(self, url, form, formsets):
+        html = self.client.get(url).content.decode()
+        present = self._rendered_names(html)
+        missing = []
+        for name, field in form.fields.items():
+            if field.required and form.add_prefix(name) not in present:
+                missing.append(f"{form.__class__.__name__}.{name}")
+        for label, formset in formsets.items():
+            for index, subform in enumerate(formset.forms):
+                for name, field in subform.fields.items():
+                    if field.required and subform.add_prefix(name) not in present:
+                        missing.append(f"{label}[{index}].{name}")
+        self.assertEqual(missing, [], f"champs obligatoires non rendus : {missing}")
+
+    def test_control_report_renders_every_required_field(self):
+        from ..forms import (ControlReportForm, ThemeAssessmentFormSet,
+                             ControlPointAnswerFormSet, CorrectiveMeasureFormSet)
+
+        chantier = make_chantier(satac_number=999350)
+        self.client.post(
+            reverse("sene_chantiers:control_report_create", args=[999350])
+        )
+        report = ControlReport.objects.get(chantier=chantier)
+        self._assert_all_required_rendered(
+            reverse("sene_chantiers:control_report_edit", args=[999350]),
+            ControlReportForm(instance=report),
+            {
+                "themes": ThemeAssessmentFormSet(instance=report, prefix="themes"),
+                "answers": ControlPointAnswerFormSet(instance=report, prefix="answers"),
+                "measures": CorrectiveMeasureFormSet(instance=report, prefix="measures"),
+            },
+        )
+
+    def test_followup_report_renders_every_required_field(self):
+        from ..forms import CorrectiveMeasureReportForm, MeasureFollowUpFormSet
+
+        chantier = make_chantier(satac_number=999351)
+        report = make_control_report(
+            chantier=chantier, global_appreciation=Appreciation.ROUGE
+        )
+        make_measure(report, order=1)
+        self.client.post(
+            reverse("sene_chantiers:corrective_measure_report_create",
+                    args=[999351])
+        )
+        followup = CorrectiveMeasureReport.objects.get(chantier=chantier)
+        self._assert_all_required_rendered(
+            reverse("sene_chantiers:corrective_measure_report_edit",
+                    args=[followup.pk]),
+            CorrectiveMeasureReportForm(instance=followup),
+            {"followups": MeasureFollowUpFormSet(instance=followup,
+                                                 prefix="followups")},
+        )

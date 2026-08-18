@@ -5,8 +5,6 @@
   const block = document.getElementById('photo-block');
   if (!block) return;
 
-  const kind = block.dataset.kind;
-  const reportId = block.dataset.report;
   const strip = document.getElementById('photo-strip');
   const input = document.getElementById('photo-input');
   const dropzone = document.getElementById('photo-dropzone');
@@ -16,11 +14,19 @@
   let pollTimer = null;
 
   const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  // Never build an application path here: the deployed instances run under
+  // a script prefix (ROOTURL -> FORCE_SCRIPT_NAME) that a hand-written
+  // path would omit, so uploads 404 on the servers and nowhere else.
+  // These come from {% url %} in the template; the per-photo ones carry a
+  // 0 in the final id position, replaced below.
+  const withId = (template, id) =>
+    template.replace(/\/0\/([^/]*)$/, `/${id}/$1`);
+
   const urls = {
-    upload: `/sene_chantiers/rapport/${kind}/${reportId}/photos/`,
-    status: `/sene_chantiers/rapport/${kind}/${reportId}/photos/etat/`,
-    caption: id => `/sene_chantiers/photos/${id}/remarques/`,
-    remove: id => `/sene_chantiers/photos/${id}/supprimer/`,
+    upload: block.dataset.urlUpload,
+    status: block.dataset.urlStatus,
+    caption: id => withId(block.dataset.urlCaption, id),
+    remove: id => withId(block.dataset.urlRemove, id),
   };
 
   function post(url, body) {

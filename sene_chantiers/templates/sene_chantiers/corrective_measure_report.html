@@ -26,7 +26,7 @@
       {% endif %}
     </div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate data-completeness-guard>
       {% csrf_token %}
       <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
 
@@ -324,6 +324,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'sene_chantiers/report_completeness.js' %}" defer></script>
 <script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 {{ conclusion_lines|json_script:"conclusion-lines" }}
 <script>

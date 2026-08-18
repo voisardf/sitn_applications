@@ -313,8 +313,10 @@ def control_report_edit(request, satac_number):
         is_draft = "save_draft" in request.POST
 
         if is_draft:
-            # A draft may be incomplete; persist whatever validates.
-            form.is_valid()
+            # Re-bind with every field optional: validated against the
+            # normal required set, a single empty field would discard the
+            # whole form and lose what the inspector just typed.
+            form = ControlReportForm(request.POST, instance=report, draft=True)
             _save_draft(report, request, form, themes, answers, measures)
             messages.info(request, "Brouillon enregistré.")
             return redirect(
@@ -338,11 +340,15 @@ def control_report_edit(request, satac_number):
 
         for error in cross_errors:
             messages.error(request, error)
+        incomplete_sections = _incomplete_control_sections(
+            form, themes, answers, measures
+        )
     else:
         form = ControlReportForm(instance=report)
         themes = ThemeAssessmentFormSet(instance=report, prefix="themes")
         answers = ControlPointAnswerFormSet(instance=report, prefix="answers")
         measures = CorrectiveMeasureFormSet(instance=report, prefix="measures")
+        incomplete_sections = []
 
     return render(
         request,
@@ -354,7 +360,8 @@ def control_report_edit(request, satac_number):
             "theme_formset": themes,
             "answer_formset": answers,
             "measure_formset": measures,
-            "answers_by_theme": _group_answers(answers),
+            "answers_by_theme": _group_answers(answers, themes),
+            "incomplete_sections": incomplete_sections,
             "read_only": read_only,
             "photo_kind": "controle",
             "photo_max_mb": settings.SENE_CHANTIERS_PHOTO_MAX_SIZE_MB,
@@ -388,21 +395,96 @@ def _apply_cascades(report, form):
 
 
 def _save_draft(report, request, form, themes, answers, measures):
-    """Persist a partially filled report without enforcing completeness."""
+    """Persist a partially filled report without enforcing completeness.
+
+    Only fields that carry a value are written. A draft must never erase
+    what is already stored, and an empty value cannot be pushed into a
+    column the database declares NOT NULL — which is what a blank control
+    date would do on a report opened and immediately saved.
+    """
     if form.is_valid():
-        form.save()
+        # ModelForm._post_clean() has already copied cleaned_data onto the
+        # instance, so an empty value is *already* sitting on `report`.
+        # Skipping the field is not enough — the stored value has to be put
+        # back, or a blank control date reaches a NOT NULL column.
+        stored = type(report).objects.get(pk=report.pk)
+        for name, value in form.cleaned_data.items():
+            if value in (None, "") and not report._meta.get_field(name).null:
+                setattr(report, name, getattr(stored, name))
+            else:
+                setattr(report, name, value)
+        report.save()
     for formset in (themes, answers, measures):
         if formset.is_valid():
             formset.save()
 
 
-def _group_answers(answer_formset):
-    """Section 04 renders one block per theme."""
+# Which tab each part of the initial report is filled in. Used to tell the
+# inspector *where* something is missing: the failure is otherwise
+# invisible when the offending field sits in a tab that is not on screen.
+CONTROL_SECTIONS = {
+    "01": "Informations générales",
+    "02": "Synthèse par thème",
+    "03": "Mesures à prendre",
+    "04": "Détail des thèmes",
+}
+
+
+def _incomplete_control_sections(form, themes, answers, measures):
+    """The sections holding a missing or invalid field, in tab order."""
+    sections = set()
+    tab01 = {"control_date", "weather_condition", "construction_phase",
+             "global_appreciation", "signature_date", "next_control_date"}
+    tab03 = {"observations_generales", "procedure_controle"}
+    for name in form.errors:
+        if name in tab03:
+            sections.add("03")
+        elif name in tab01 or name == "__all__":
+            sections.add("01")
+    for subform in themes.forms:
+        for name in subform.errors:
+            # The per-theme observations are captured in section 04, beside
+            # the checklist they comment on; the rest of the assessment
+            # belongs to the section 02 summary.
+            sections.add("04" if name == "detail_observations" else "02")
+    if themes.non_form_errors():
+        sections.add("02")
+    if any(sub.errors for sub in answers.forms) or answers.non_form_errors():
+        sections.add("04")
+    if any(sub.errors for sub in measures.forms) or measures.non_form_errors():
+        sections.add("03")
+    return [{"code": c, "label": CONTROL_SECTIONS[c]} for c in sorted(sections)]
+
+
+def _group_answers(answer_formset, theme_formset=None):
+    """Section 04 renders one block per theme.
+
+    Each block also carries that theme's assessment form, because the
+    per-theme observations live on `ThemeAssessment.detail_observations`
+    and are captured in section 04 beside the checklist they comment on.
+    They are a required field: without them rendered, the report cannot
+    validate at all and the failure has nowhere to display.
+    """
+    assessment_forms = {}
+    if theme_formset is not None:
+        assessment_forms = {
+            subform.instance.theme_id: subform
+            for subform in theme_formset.forms
+            if subform.instance.theme_id
+        }
+
     grouped = {}
     for subform in answer_formset.forms:
         point = subform.instance.control_point
         grouped.setdefault(point.theme, []).append(subform)
-    return [{"theme": theme, "forms": forms_} for theme, forms_ in grouped.items()]
+    return [
+        {
+            "theme": theme,
+            "forms": forms_,
+            "assessment_form": assessment_forms.get(theme.pk),
+        }
+        for theme, forms_ in grouped.items()
+    ]
 
 
 # Section 03 of a follow-up is generated from the data rather than typed.

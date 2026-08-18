@@ -709,3 +709,21 @@ main .form-text {
   color: var(--sc-rouge);
   font-weight: 700;
 }
+
+/* Onglet dont une information obligatoire manque encore. Marqué par
+   report_completeness.js, pour qu'un onglet complet ne donne pas
+   l'impression que tout le rapport l'est. */
+.nav-tabs .nav-link.is-incomplete {
+  color: var(--sc-rouge);
+}
+
+.nav-tabs .nav-link.is-incomplete::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--sc-rouge);
+  vertical-align: middle;
+}
