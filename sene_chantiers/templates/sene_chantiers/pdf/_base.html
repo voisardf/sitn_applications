@@ -49,7 +49,7 @@ section 04 depends on.
   td, th { vertical-align: top; }
 
   /* ---------- Masthead ---------------------------------------------- */
-  .masthead { margin-bottom: 3mm; }
+  .masthead { margin-bottom: 5mm; }
   .masthead td { vertical-align: top; border: 0; padding: 0; }
   .masthead .logo img { height: 11mm; }
   .masthead .service {
@@ -68,7 +68,7 @@ section 04 depends on.
     text-transform: uppercase;
     letter-spacing: .2px;
     color: #16325c;
-    margin: 4mm 0 1mm;
+    margin: 6mm 0 1.5mm;
     line-height: 1.15;
   }
   .doc-subtitle {
@@ -77,15 +77,18 @@ section 04 depends on.
     font-weight: bold;
     text-transform: uppercase;
     color: #1f7a3d;
-    margin: 0 0 4mm;
+    margin: 0 0 8mm;
   }
 
   /* ---------- Meta strip -------------------------------------------- */
   .metastrip {
     border-top: 1px solid #dfe4ea;
     border-bottom: 1px solid #dfe4ea;
-    padding: 2.5mm 0;
-    margin-bottom: 4mm;
+    padding: 4mm 0;
+    /* Sections 01 et 02 tiennent en général sur la première page : l'espace
+       gagné sert à aérer le haut du document et la séparation avec la
+       section 01, plutôt qu'à rester vide en bas de page. */
+    margin-bottom: 10mm;
   }
   .metastrip td { border: 0; padding: 0 2mm; vertical-align: middle; }
   .metastrip .ico { width: 8mm; color: #16325c; }
@@ -96,12 +99,12 @@ section 04 depends on.
   .metastrip .arrow { width: 6mm; text-align: center; color: #16325c; }
 
   /* ---------- Section chrome ---------------------------------------- */
-  .section { margin-bottom: 4.5mm; break-inside: avoid; }
+  .section { margin-bottom: 6mm; break-inside: avoid; }
   /* Deliberate pagination: the measures list, the checklist and the
      signature each get their own page. Applied by the report templates,
      which decide when a break would leave a page nearly empty. */
   .break-after { break-after: page; }
-  .section-head { margin-bottom: 2.5mm; }
+  .section-head { margin-bottom: 3.5mm; }
   .section-head td { border: 0; padding: 0; vertical-align: middle; }
   .section-head .num {
     width: 13mm;
@@ -137,9 +140,12 @@ section 04 depends on.
   .grid td {
     padding: 2.2mm 2mm; border-bottom: 1px solid #eef1f5; font-size: 8pt;
   }
-  /* Section 04 lists every control point and must still fit one page. */
-  .grid.compact td { padding: 1.15mm 2mm; font-size: 7.3pt; }
-  .grid.compact th { padding: 1.4mm 2mm; }
+  /* Section 04 a sa propre page et doit l'occuper : la liste complète des
+     points contrôlés tient, et l'espace restant est réparti entre les
+     lignes plutôt que laissé vide en bas. Le débordement ne survient que
+     si les observations sont exceptionnellement longues. */
+  .grid.compact td { padding: 1.9mm 2mm; font-size: 7.8pt; }
+  .grid.compact th { padding: 2mm 2mm; }
   .grid td.c, .grid th.c { text-align: center; }
   .grid .theme { font-weight: bold; color: #16325c; }
   .grid .theme-cell td { border: 0; padding: 0; vertical-align: middle; }
@@ -162,7 +168,7 @@ section 04 depends on.
 
   /* ---------- Appreciation card -------------------------------------- */
   .appr-card {
-    border: 1px solid #dfe4ea; border-radius: 4pt; padding: 3mm;
+    border: 1px solid #dfe4ea; border-radius: 4pt; padding: 4mm 3.5mm;
   }
   /* The card carries a wash of the level that actually applies, so the
      verdict is readable before a single word is. */
@@ -175,7 +181,7 @@ section 04 depends on.
     letter-spacing: .3px;
   }
   .appr-row td {
-    border: 0; padding: 1mm 0; vertical-align: middle;
+    border: 0; padding: 1.5mm 0; vertical-align: middle;
   }
   .appr-row .marker {
     width: 4mm; color: #16325c; font-size: 11pt; font-weight: bold;
@@ -202,7 +208,7 @@ section 04 depends on.
   .appr-row.inactive .appr-desc { color: #8a94a3; }
 
   /* ---------- Key/value list (section 01, left column) ---------------- */
-  .kv td { border: 0; padding: 1.4mm 0; vertical-align: top; }
+  .kv td { border: 0; padding: 2.2mm 0; vertical-align: top; }
   .kv .ico { width: 7mm; color: #16325c; }
   .kv .k {
     font-size: 8pt; font-weight: bold; color: #16325c; display: block;

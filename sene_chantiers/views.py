@@ -1,7 +1,7 @@
 """Views for sene_chantiers.
 
 Every view is gated on SSO authentication plus membership of the
-sene_chantiers_admin group.
+application's access group (see auth.py).
 """
 
 import os
@@ -30,9 +30,12 @@ from .labels import (
     appreciation_label,
     email_status_appreciation,
     email_status_label,
+    export_stem,
     followup_conclusion_lines,
 )
 from .models import (
+    Conformity,
+    CorrectiveMeasure,
     Appreciation,
     Chantier,
     ConstructionPhase,
@@ -94,15 +97,14 @@ def _dossier_reports(chantier):
                 "is_locked": control_report.is_locked,
             }
         )
-    for index, followup in enumerate(
-        chantier.corrective_measure_reports.order_by("follow_up_date"), start=1
-    ):
+    for followup in chantier.corrective_measure_reports.order_by("follow_up_date"):
         rows.append(
             {
                 "kind": "followup",
                 "kind_slug": "suivi",
                 "pk": followup.pk,
-                "label": f"Suivi des mesures correctives {index}",
+                # Same number as the exports and their filenames use.
+                "label": f"Suivi des mesures correctives {followup.sequence_number}",
                 "date": followup.follow_up_date,
                 "appreciation": followup.global_appreciation,
                 "appreciation_label": appreciation_label(
@@ -317,10 +319,22 @@ def control_report_edit(request, satac_number):
             # normal required set, a single empty field would discard the
             # whole form and lose what the inspector just typed.
             form = ControlReportForm(request.POST, instance=report, draft=True)
+            # The formsets need relaxing too: validated normally, a single
+            # empty observation invalidates the whole themes formset and
+            # every observation typed so far is silently dropped — and an
+            # incomplete measure disappears the same way.
+            draft_kwargs = {"form_kwargs": {"draft": True}}
+            themes = ThemeAssessmentFormSet(
+                request.POST, instance=report, prefix="themes", **draft_kwargs)
+            answers = ControlPointAnswerFormSet(
+                request.POST, instance=report, prefix="answers", **draft_kwargs)
+            measures = CorrectiveMeasureFormSet(
+                request.POST, instance=report, prefix="measures", **draft_kwargs)
             _save_draft(report, request, form, themes, answers, measures)
             messages.info(request, "Brouillon enregistré.")
             return redirect(
-                "sene_chantiers:control_report_edit", satac_number=satac_number
+                f"{reverse('sene_chantiers:control_report_edit', args=[satac_number])}"
+                f"?tab={_active_tab(request)}"
             )
 
         all_valid = all([form.is_valid(), themes.is_valid(),
@@ -331,7 +345,7 @@ def control_report_edit(request, satac_number):
             report = form.save()
             themes.save()
             answers.save()
-            measures.save()
+            _save_measures(measures, report)
             _apply_cascades(report, form)
             messages.success(request, "Rapport enregistré.")
             return redirect(
@@ -362,6 +376,8 @@ def control_report_edit(request, satac_number):
             "measure_formset": measures,
             "answers_by_theme": _group_answers(answers, themes),
             "incomplete_sections": incomplete_sections,
+            "active_tab": _active_tab(request),
+            "conformity_choices": Conformity.choices,
             "read_only": read_only,
             "photo_kind": "controle",
             "photo_max_mb": settings.SENE_CHANTIERS_PHOTO_MAX_SIZE_MB,
@@ -394,6 +410,55 @@ def _apply_cascades(report, form):
             report.save(update_fields=["global_appreciation"])
 
 
+def _save_measures(formset, report):
+    """Persist the measures formset, positions included.
+
+    `order` is generated rather than typed, so it is not in the form and a
+    new row arrives without one. It cannot simply default either: the
+    (report, order) pair is unique, and two rows added in the same submit
+    would collide. Each new row therefore takes the next free position
+    before insert, and the whole list is compacted afterwards so a deletion
+    leaves no gap.
+    """
+    instances = formset.save(commit=False)
+    for obsolete in formset.deleted_objects:
+        obsolete.delete()
+    taken = set(report.corrective_measures.values_list("order", flat=True))
+    for instance in instances:
+        if instance.pk is None:
+            instance.order = max(taken) + 1 if taken else 1
+            taken.add(instance.order)
+        instance.save()
+    formset.save_m2m()
+    renumber_measures(report)
+
+
+def renumber_measures(report):
+    """Give the measures consecutive numbers, in list order.
+
+    The number is the row's position, not data the inspector supplies:
+    typing it invites duplicates and gaps, and nothing else depends on the
+    value being chosen by hand.
+    """
+    for position, measure in enumerate(
+            report.corrective_measures.order_by("order", "pk"), start=1):
+        if measure.order != position:
+            CorrectiveMeasure.objects.filter(pk=measure.pk).update(order=position)
+
+
+# The two report forms use different tab ids, but the same mechanism: the
+# page posts the tab it was submitted from and the redirect carries it back,
+# so saving from section 04 does not throw the inspector back to section 01.
+CONTROL_TABS = ("tab01", "tab02", "tab03", "tab04")
+FOLLOWUP_TABS = ("f01", "f02", "f03", "f04")
+
+
+def _active_tab(request, tabs=CONTROL_TABS):
+    """Which tab the form was submitted from, so we can return to it."""
+    tab = request.POST.get("active_tab") or request.GET.get("tab") or tabs[0]
+    return tab if tab in tabs else tabs[0]
+
+
 def _save_draft(report, request, form, themes, answers, measures):
     """Persist a partially filled report without enforcing completeness.
 
@@ -414,9 +479,11 @@ def _save_draft(report, request, form, themes, answers, measures):
             else:
                 setattr(report, name, value)
         report.save()
-    for formset in (themes, answers, measures):
+    for formset in (themes, answers):
         if formset.is_valid():
             formset.save()
+    if measures.is_valid():
+        _save_measures(measures, report)
 
 
 # Which tab each part of the initial report is filled in. Used to tell the
@@ -428,6 +495,26 @@ CONTROL_SECTIONS = {
     "03": "Mesures à prendre",
     "04": "Détail des thèmes",
 }
+
+
+def _save_followup_draft(report, form, followups):
+    """Persist a partially filled follow-up, without erasing what is stored.
+
+    Mirror of `_save_draft` for the initial report, including the part that
+    is easy to miss: `ModelForm._post_clean()` has already copied the
+    cleaned data onto the instance, so a field left empty has to be put
+    back explicitly or it reaches a NOT NULL column as a blank.
+    """
+    if form.is_valid():
+        stored = type(report).objects.get(pk=report.pk)
+        for name, value in form.cleaned_data.items():
+            if value in (None, "") and not report._meta.get_field(name).null:
+                setattr(report, name, getattr(stored, name))
+            else:
+                setattr(report, name, value)
+        report.save()
+    if followups.is_valid():
+        followups.save()
 
 
 def _incomplete_control_sections(form, themes, answers, measures):
@@ -619,13 +706,20 @@ def corrective_measure_report_edit(request, pk):
         is_draft = "save_draft" in request.POST
 
         if is_draft:
-            if form.is_valid():
-                form.save()
-            if followups.is_valid():
-                followups.save()
+            # Same treatment as the initial report: re-bind with every
+            # field optional, formset included. Kept strict, one missing
+            # observation invalidated the whole table and silently dropped
+            # everything else typed in it — responsible, status, deadline.
+            form = CorrectiveMeasureReportForm(
+                request.POST, instance=report, draft=True)
+            followups = MeasureFollowUpFormSet(
+                request.POST, instance=report, prefix="followups",
+                form_kwargs={"draft": True})
+            _save_followup_draft(report, form, followups)
             messages.info(request, "Brouillon enregistré.")
             return redirect(
-                "sene_chantiers:corrective_measure_report_edit", pk=report.pk
+                f"{reverse('sene_chantiers:corrective_measure_report_edit', args=[report.pk])}"
+                f"?tab={_active_tab(request, FOLLOWUP_TABS)}"
             )
 
         if form.is_valid() and followups.is_valid():
@@ -649,6 +743,7 @@ def corrective_measure_report_edit(request, pk):
             "report": report,
             "form": form,
             "followup_formset": followups,
+            "active_tab": _active_tab(request, FOLLOWUP_TABS),
             "first_control_date": chantier.control_report.control_date,
             "observations": followup_observations(report),
             "read_only": read_only,
@@ -886,8 +981,7 @@ def pdf_export(request, kind, pk):
             satac_number=report.chantier.satac_number,
         )
 
-    prefix = "controle" if kind == "controle" else "suivi"
-    filename = f"rapport_{prefix}_{report.chantier.satac_number}.pdf"
+    filename = f"rapport_{export_stem(report)}.pdf"
     response = HttpResponse(content, content_type="application/pdf")
     # Inline: the spec asks for the PDF to open in a new tab.
     response["Content-Disposition"] = f'inline; filename="{filename}"'
@@ -895,10 +989,16 @@ def pdf_export(request, kind, pk):
 
 
 @sene_chantiers_admin_required
-def excel_export(request, satac_number):
-    """Whole-dossier workbook, generated per request and never stored."""
-    chantier = get_object_or_404(Chantier, satac_number=satac_number)
-    content = excel_service.dossier_workbook(chantier)
+def excel_export(request, kind, pk):
+    """Whole-dossier workbook, generated per request and never stored.
+
+    The workbook covers the whole dossier (§4.8), but it is reached from a
+    given report's row, and the file is named after that report — otherwise
+    every row downloads the same `dossier_<satac>.xlsx` and the copies are
+    indistinguishable once saved.
+    """
+    report = _report_from_kind(kind, pk)
+    content = excel_service.dossier_workbook(report.chantier)
     response = HttpResponse(
         content,
         content_type=(
@@ -906,7 +1006,7 @@ def excel_export(request, satac_number):
         ),
     )
     response["Content-Disposition"] = (
-        f'attachment; filename="dossier_{satac_number}.xlsx"'
+        f'attachment; filename="dossier_{export_stem(report)}.xlsx"'
     )
     return response
 

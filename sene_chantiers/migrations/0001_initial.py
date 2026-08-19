@@ -20,6 +20,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Comme les autres applications à schéma dédié du dépôt : sans
+        # cela, une base neuve — instance de développement ou base de test
+        # — n'a pas où créer les tables, et le schéma doit être posé à la
+        # main avant la première migration.
+        migrations.RunSQL(
+            sql=[("CREATE SCHEMA IF NOT EXISTS sene_chantiers;")],
+            reverse_sql=[("DROP SCHEMA sene_chantiers CASCADE;")],
+        ),
         migrations.CreateModel(
             name='At034AutorisationConstruire',
             fields=[

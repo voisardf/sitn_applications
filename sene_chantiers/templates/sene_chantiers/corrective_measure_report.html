@@ -26,25 +26,36 @@
       {% endif %}
     </div>
 
-    <form method="post" novalidate data-completeness-guard>
+    <form method="post" novalidate id="followup-form" data-completeness-guard>
       {% csrf_token %}
       <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
+      {% comment %}
+        L'onglet courant voyage avec le formulaire : enregistrer depuis la
+        section 02 doit rendre la main sur la section 02, pas ramener à la
+        section 01. Renseigné par le script, relu par la vue.
+      {% endcomment %}
+      <input type="hidden" name="active_tab" id="active-tab"
+             value="{{ active_tab|default:'f01' }}">
 
       <ul class="nav nav-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#f01"
+          <button class="nav-link{% if active_tab|default:'f01' == 'f01' %} active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#f01"
                   type="button" role="tab">01 &nbsp;Informations générales</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#f02"
+          <button class="nav-link{% if active_tab|default:'f01' == 'f02' %} active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#f02"
                   type="button" role="tab">02 &nbsp;Contrôle des mesures</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#f03"
+          <button class="nav-link{% if active_tab|default:'f01' == 'f03' %} active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#f03"
                   type="button" role="tab">03 &nbsp;Observations générales</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#f04"
+          <button class="nav-link{% if active_tab|default:'f01' == 'f04' %} active{% endif %}"
+                  data-bs-toggle="tab" data-bs-target="#f04"
                   type="button" role="tab">04 &nbsp;Conclusion</button>
         </li>
       </ul>
@@ -53,7 +64,7 @@
       <div class="tab-content">
 
         {# ---------------------------------------------------------- 01 #}
-        <div class="tab-pane fade show active" id="f01" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'f01' == 'f01' %} show active{% endif %}" id="f01" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -159,7 +170,7 @@
         </div>
 
         {# ---------------------------------------------------------- 02 #}
-        <div class="tab-pane fade" id="f02" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'f01' == 'f02' %} show active{% endif %}" id="f02" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -227,7 +238,7 @@
         </div>
 
         {# ---------------------------------------------------------- 03 #}
-        <div class="tab-pane fade" id="f03" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'f01' == 'f03' %} show active{% endif %}" id="f03" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -254,7 +265,7 @@
         </div>
 
         {# ---------------------------------------------------------- 04 #}
-        <div class="tab-pane fade" id="f04" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'f01' == 'f04' %} show active{% endif %}" id="f04" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -325,6 +336,7 @@
 
 {% block scripts %}
 <script src="{% static 'sene_chantiers/report_completeness.js' %}" defer></script>
+<script src="{% static 'sene_chantiers/control_report_form.js' %}" defer></script>
 <script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 {{ conclusion_lines|json_script:"conclusion-lines" }}
 <script>

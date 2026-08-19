@@ -60,7 +60,7 @@ urlpatterns = [
         name="pdf_export",
     ),
     path(
-        "chantier/<int:satac_number>/excel/",
+        "rapport/<str:kind>/<int:pk>/excel/",
         views.excel_export,
         name="excel_export",
     ),

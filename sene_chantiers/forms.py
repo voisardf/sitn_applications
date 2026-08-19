@@ -119,6 +119,9 @@ class ControlReportForm(forms.ModelForm):
         and the inspector loses the work the button promised to keep.
         """
         super().__init__(*args, **kwargs)
+        # The model's own completeness rules must stand down too, or
+        # _post_clean() re-imposes exactly what this form just relaxed.
+        self.instance.is_draft = draft
         # Only the temperature and the conditional next-control date may be
         # left empty; everything else is mandatory (spec 4.2).
         optional = {"temperature", "next_control_date", "signature_date",
@@ -150,11 +153,13 @@ class ThemeAssessmentForm(forms.ModelForm):
             "appreciation": forms.Select(attrs={"class": "form-select sc-appr"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, draft=False, **kwargs):
         super().__init__(*args, **kwargs)
         # Free-text remarks are mandatory; "R.A.S." is an acceptable answer.
-        self.fields["synthesis_remarks"].required = True
-        self.fields["detail_observations"].required = True
+        # A draft relaxes them: otherwise one empty remark invalidates the
+        # whole formset and every observation typed so far is discarded.
+        self.fields["synthesis_remarks"].required = not draft
+        self.fields["detail_observations"].required = not draft
 
 
 class ControlPointAnswerForm(forms.ModelForm):
@@ -165,20 +170,24 @@ class ControlPointAnswerForm(forms.ModelForm):
         fields = ["conformity"]
         widgets = {"conformity": forms.RadioSelect(attrs={"class": "form-check-input"})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, draft=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["conformity"].required = True
+        self.fields["conformity"].required = not draft
         self.fields["conformity"].choices = Conformity.choices
 
 
 class CorrectiveMeasureForm(forms.ModelForm):
-    """Section 03 row."""
+    """Section 03 row.
+
+    `order` is deliberately absent: it is the row's position in the list,
+    renumbered on every save, so asking the inspector to type it invites
+    duplicates and gaps for no benefit. It is displayed as text.
+    """
 
     class Meta:
         model = CorrectiveMeasure
-        fields = ["order", "description", "responsible", "deadline", "status"]
+        fields = ["description", "responsible", "deadline", "status"]
         widgets = {
-            "order": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
             "description": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
             "responsible": forms.TextInput(attrs={"class": "form-control"}),
             "deadline": forms.DateInput(
@@ -186,6 +195,13 @@ class CorrectiveMeasureForm(forms.ModelForm):
             ),
             "status": forms.Select(attrs={"class": "form-select"}),
         }
+
+    def __init__(self, *args, draft=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if draft:
+            # A measure being typed is worth keeping even when incomplete.
+            for field in self.fields.values():
+                field.required = False
 
 
 # Section 02 and 04 have a fixed number of rows, seeded when the report is
@@ -230,15 +246,16 @@ class CorrectiveMeasureReportForm(forms.ModelForm):
             "final_closure_state": forms.Select(attrs={"class": "form-select"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, draft=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.instance.is_draft = draft
         optional = {
             "next_control_date", "signature_date", "new_anomalies_description",
             "is_denunciation_escalation", "final_closure_state",
             "global_appreciation_is_manual_override",
         }
         for name, field in self.fields.items():
-            field.required = name not in optional
+            field.required = False if draft else name not in optional
             if name == "is_denunciation_escalation":
                 field.widget.attrs.setdefault("class", "form-check-input")
             elif name == "global_appreciation":
@@ -263,14 +280,22 @@ class MeasureFollowUpForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, draft=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["findings"].required = True
-        self.fields["status"].required = True
+        # A draft accepts an incomplete row. Kept strict, a single missing
+        # observation invalidates the whole formset and everything typed in
+        # the table — the responsible, the status, the new deadline — is
+        # dropped without a word.
+        self.draft = draft
+        self.instance.is_draft = draft
+        self.fields["findings"].required = not draft
+        self.fields["status"].required = not draft
         self.fields["new_deadline"].required = False
 
     def clean(self):
         cleaned = super().clean()
+        if self.draft:
+            return cleaned
         # A measure that is not closed must carry a new deadline.
         if cleaned.get("status") and cleaned["status"] != FollowUpStatus.CLOSED:
             if not cleaned.get("new_deadline"):

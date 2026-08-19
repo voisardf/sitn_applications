@@ -727,3 +727,27 @@ main .form-text {
   background: var(--sc-rouge);
   vertical-align: middle;
 }
+
+/* Ligne d'application groupée en tête de chaque thème (section 04). */
+.sc-bulk-row {
+  background: #f7f8fa;
+}
+
+.sc-bulk-row td {
+  font-size: 12.5px;
+}
+
+/* Mesure marquée pour suppression : le geste reste réversible jusqu'à
+   l'enregistrement, la ligne est donc barrée plutôt que retirée. */
+.measure-row.is-deleted {
+  opacity: 0.5;
+}
+
+.measure-row.is-deleted td {
+  text-decoration: line-through;
+}
+
+.sc-measure-order {
+  font-weight: 600;
+  color: var(--text-secondary);
+}

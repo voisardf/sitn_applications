@@ -414,6 +414,15 @@ class BaseReport(models.Model):
     class Meta:
         abstract = True
 
+    # Set by the forms when "Enregistrer le brouillon" is used. A draft is
+    # incomplete by definition, so the *completeness* rules below do not
+    # apply to it. Correctness rules — a control date in the future — still
+    # do: a wrong value is wrong whether it is stored as a draft or not.
+    # Without this distinction the model's own clean() re-imposes, through
+    # ModelForm._post_clean(), exactly what the draft form just relaxed,
+    # and the save fails silently.
+    is_draft = False
+
     @property
     def closes_the_case(self):
         return self.global_appreciation == Appreciation.VERT
@@ -421,6 +430,8 @@ class BaseReport(models.Model):
     def clean(self):
         super().clean()
         # "Délai de mise en conformité" — required unless the case closes here.
+        if self.is_draft:
+            return
         if not self.closes_the_case and not self.next_control_date:
             raise ValidationError(
                 {
@@ -537,6 +548,25 @@ class CorrectiveMeasureReport(BaseReport):
         return f"Suivi du {self.follow_up_date}"
 
     @property
+    def sequence_number(self):
+        """Which follow-up this is within its dossier, counting from 1.
+
+        Derived rather than stored: the position follows from the dates, and
+        a stored counter would have to be maintained on every insertion and
+        deletion. It names the report on screen, in the exports and in
+        their filenames, so all four agree by construction.
+        """
+        siblings = (type(self).objects
+                    .filter(chantier_id=self.chantier_id)
+                    .order_by("follow_up_date", "pk")
+                    .values_list("pk", flat=True))
+        for position, pk in enumerate(siblings, start=1):
+            if pk == self.pk:
+                return position
+        # Unsaved, or no longer in the dossier: it would be the next one.
+        return len(siblings) + 1
+
+    @property
     def is_concluded(self):
         """True once the re-checked measures carry the inspector's findings."""
         return self.measure_followups.exclude(findings="").exists()
@@ -632,10 +662,16 @@ class CorrectiveMeasure(models.Model):
     control_report = models.ForeignKey(
         ControlReport, on_delete=models.CASCADE, related_name="corrective_measures"
     )
+    # Generated, never typed: the number is the row's position in the list.
+    # `_save_measures()` assigns it, so it is absent from the form.
     order = models.PositiveSmallIntegerField(_("No."))
     description = models.TextField(_("Mesure"))
     responsible = models.CharField(_("Responsable"), max_length=250)
-    deadline = models.DateField(_("Échéance"))
+    # Nullable so a half-typed measure survives "Enregistrer le brouillon":
+    # a draft is allowed to be incomplete, and a NOT NULL column would make
+    # the row impossible to store at all. Still required by the form on a
+    # real save (spec 4.2).
+    deadline = models.DateField(_("Échéance"), null=True, blank=True)
     status = models.CharField(
         _("Statut"), max_length=15, choices=MeasureStatus, default=MeasureStatus.OPEN
     )
@@ -698,8 +734,14 @@ class MeasureFollowUp(models.Model):
     def __str__(self):
         return f"{self.original_measure} — {self.get_status_display()}"
 
+    # See BaseReport.is_draft: the rule below states what a *finished* row
+    # must satisfy, not what a half-typed one may hold.
+    is_draft = False
+
     def clean(self):
         super().clean()
+        if self.is_draft:
+            return
         if self.status != FollowUpStatus.CLOSED and not self.new_deadline:
             raise ValidationError(
                 {

@@ -17,6 +17,7 @@ import unittest
 from datetime import timedelta
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.gis.geos import Point
 from django.db import connection
@@ -146,7 +147,11 @@ def make_user(username="inspecteur", in_group=True, **kwargs):
         username=username, password="x", email=f"{username}@example.ch", **kwargs
     )
     if in_group:
-        group, _ = Group.objects.get_or_create(name="sene_chantiers_admin")
+        # Never the literal: the group's name is an instance setting, and
+        # hardcoding it here would make the tests pass against a name the
+        # application no longer looks for.
+        group, _ = Group.objects.get_or_create(
+            name=settings.SENE_CHANTIERS_ADMIN_GROUP)
         user.groups.add(group)
     return user
 

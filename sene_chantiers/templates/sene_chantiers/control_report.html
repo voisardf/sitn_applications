@@ -28,6 +28,13 @@
       {% csrf_token %}
       {# Tab isolation: the server refuses a save whose SATAC does not match. #}
       <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
+      {% comment %}
+        L'onglet actif voyage avec le formulaire : après un brouillon ou un
+        refus, l'inspecteur doit retrouver la section où il travaillait, et
+        non être renvoyé à la 01.
+      {% endcomment %}
+      <input type="hidden" name="active_tab" id="active-tab"
+             value="{{ active_tab|default:'tab01' }}">
 
       {% comment %}
         Un champ obligatoire non rendu, ou rendu dans un autre onglet que
@@ -51,22 +58,22 @@
 
       <ul class="nav nav-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab01"
+          <button class="nav-link{% if active_tab|default:'tab01' == 'tab01' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab01"
                   type="button" role="tab"
                   data-tab-code="tab01">01 &nbsp;Informations générales</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab02"
+          <button class="nav-link{% if active_tab|default:'tab01' == 'tab02' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab02"
                   type="button" role="tab"
                   data-tab-code="tab02">02 &nbsp;Synthèse par thème</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab03"
+          <button class="nav-link{% if active_tab|default:'tab01' == 'tab03' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab03"
                   type="button" role="tab"
                   data-tab-code="tab03">03 &nbsp;Mesures à prendre</button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab04"
+          <button class="nav-link{% if active_tab|default:'tab01' == 'tab04' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab04"
                   type="button" role="tab"
                   data-tab-code="tab04">04 &nbsp;Détail des thèmes</button>
         </li>
@@ -76,7 +83,7 @@
       <div class="tab-content">
 
         {# ---------------------------------------------------------- 01 #}
-        <div class="tab-pane fade show active" id="tab01" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab01' %} show active{% endif %}" id="tab01" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -215,7 +222,7 @@
         </div>
 
         {# ---------------------------------------------------------- 02 #}
-        <div class="tab-pane fade" id="tab02" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab02' %} show active{% endif %}" id="tab02" role="tabpanel">
           <section class="sc-section">
             <header>
               <div class="sc-section-head-left">
@@ -256,7 +263,7 @@
         </div>
 
         {# ---------------------------------------------------------- 03 #}
-        <div class="tab-pane fade" id="tab03" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab03' %} show active{% endif %}" id="tab03" role="tabpanel">
           <section class="sc-section">
             <header class="d-flex justify-content-between align-items-center">
               <div class="sc-section-head-left">
@@ -285,16 +292,27 @@
                     {% for subform in measure_formset %}
                       <tr class="measure-row">
                         {{ subform.id }}
-                        <td>{{ subform.order }}</td>
+                        <td class="sc-measure-order">
+                          {{ subform.instance.order|default:forloop.counter }}
+                        </td>
                         <td>{{ subform.description }}{{ subform.description.errors }}</td>
                         <td>{{ subform.responsible }}</td>
                         <td>{{ subform.deadline }}</td>
                         <td>{{ subform.status }}</td>
                         <td class="text-end">
-                          {% if subform.instance.pk %}
-                            <label class="btn btn-sm btn-outline-danger mb-0"
-                                   title="Supprimer">
-                              {{ subform.DELETE }} <i class="bi bi-trash"></i>
+                          {% comment %}
+                            La case à cocher pilote la suppression côté
+                            formset ; elle est masquée et remplacée par le
+                            bouton corbeille. La ligne est barrée tant que
+                            l'enregistrement n'a pas eu lieu, pour que le
+                            geste reste réversible. Une fois le courriel
+                            parti, le rapport fait foi : plus de corbeille.
+                          {% endcomment %}
+                          {% if not read_only %}
+                            <label class="btn btn-sm btn-outline-danger mb-0 sc-measure-delete"
+                                   title="Supprimer cette mesure">
+                              <span class="visually-hidden">{{ subform.DELETE }}</span>
+                              <i class="bi bi-trash"></i>
                             </label>
                           {% endif %}
                         </td>
@@ -343,7 +361,7 @@
         </div>
 
         {# ---------------------------------------------------------- 04 #}
-        <div class="tab-pane fade" id="tab04" role="tabpanel">
+        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab04' %} show active{% endif %}" id="tab04" role="tabpanel">
           {{ answer_formset.management_form }}
           {% for block in answers_by_theme %}
             <section class="sc-section" data-theme-block="{{ block.theme.id }}">
@@ -363,6 +381,45 @@
                       </tr>
                     </thead>
                     <tbody>
+                      {% comment %}
+                        Ligne d'en-tête : applique une réponse à tous les
+                        points du thème d'un coup. La plupart des thèmes
+                        sont conformes en bloc ; cocher dix lignes une par
+                        une pour arriver au même résultat est du temps
+                        perdu. Chaque ligne reste modifiable ensuite.
+                      {% endcomment %}
+                      {% comment %}
+                        Raccourci de saisie : la plupart des thèmes sont
+                        conformes de bout en bout, et cocher vingt lignes
+                        une à une n'apporte rien. Chaque ligne reste
+                        modifiable après coup ; ce bouton n'est pas envoyé
+                        au serveur, il ne fait que cocher les lignes.
+                      {% endcomment %}
+                      {% if not read_only %}
+                      <tr class="sc-bulk-row" data-bulk-theme="{{ block.theme.pk }}">
+                        <td class="text-muted">
+                          <i class="bi bi-lightning-charge"></i>
+                          Appliquer à tout le thème
+                        </td>
+                        <td>
+                          <div class="d-flex gap-3">
+                            {% for value, label in conformity_choices %}
+                              <div class="form-check">
+                                <input class="form-check-input sc-bulk-input"
+                                       type="radio"
+                                       name="bulk-{{ block.theme.pk }}"
+                                       id="bulk-{{ block.theme.pk }}-{{ value }}"
+                                       value="{{ value }}">
+                                <label class="form-check-label"
+                                       for="bulk-{{ block.theme.pk }}-{{ value }}">
+                                  {{ label }}
+                                </label>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </td>
+                      </tr>
+                      {% endif %}
                       {% for subform in block.forms %}
                         <tr>
                           {{ subform.id }}
@@ -429,6 +486,7 @@
 
 {% block scripts %}
 <script src="{% static 'sene_chantiers/report_completeness.js' %}" defer></script>
+<script src="{% static 'sene_chantiers/control_report_form.js' %}" defer></script>
 <script src="{% static 'sene_chantiers/photos.js' %}" defer></script>
 <script>
 (function () {

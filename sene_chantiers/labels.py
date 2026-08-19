@@ -105,3 +105,17 @@ def email_status_label(template_used):
 
 def email_status_appreciation(template_used):
     return EMAIL_TEMPLATE_APPRECIATION.get(template_used, Appreciation.VERT)
+
+
+def export_stem(report):
+    """The part of an export filename that identifies a report.
+
+    `controle_1234` for the initial report, `suivi2_1234` for the second
+    follow-up. Written once and shared by the PDF, the Excel workbook and
+    the email attachment: three different names for the same report is
+    exactly how a downloads folder becomes unreadable, and the follow-up
+    number was missing from all three.
+    """
+    satac = report.chantier.satac_number
+    number = getattr(report, "sequence_number", None)
+    return f"suivi{number}_{satac}" if number else f"controle_{satac}"

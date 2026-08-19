@@ -92,11 +92,36 @@ class FormPage:
         """Press "Enregistrer"."""
         return self.client.post(self.url, self.data)
 
-    def save_draft(self):
-        """Press "Enregistrer le brouillon": incompleteness is allowed."""
+    def save_draft(self, tab=None):
+        """Press "Enregistrer le brouillon": incompleteness is allowed.
+
+        `tab` names the tab the button was pressed from, as the page does
+        through its hidden field.
+        """
         payload = dict(self.data)
         payload["save_draft"] = "1"
+        if tab:
+            payload["active_tab"] = tab
         return self.client.post(self.url, payload)
+
+    def add_measure(self, description, responsible="Entreprise", deadline=None,
+                    status=None):
+        """Add one row to the measures table, as the "+" button does."""
+        index = int(self.data.get("measures-TOTAL_FORMS", 0))
+        self.data["measures-TOTAL_FORMS"] = str(index + 1)
+        self.data[f"measures-{index}-id"] = ""
+        self.data[f"measures-{index}-description"] = description
+        self.data[f"measures-{index}-responsible"] = responsible
+        self.data[f"measures-{index}-deadline"] = str(deadline or "")
+        self.data[f"measures-{index}-status"] = status or "open"
+        return self
+
+    def delete_measure(self, index):
+        """Tick the row's trash box: it goes on the next save."""
+        name = f"measures-{index}-DELETE"
+        assert name in self.data, f"row {index} offers no delete box"
+        self.data[name] = "on"
+        return self
 
 
 class Inspector:
@@ -155,7 +180,6 @@ class Inspector:
             page.set("measures-TOTAL_FORMS", str(measures))
             for index in range(measures):
                 page.data.setdefault(f"measures-{index}-id", "")
-                page.data[f"measures-{index}-order"] = str(index + 1)
                 page.data[f"measures-{index}-description"] = (
                     f"Mesure corrective {index + 1}")
                 page.data[f"measures-{index}-responsible"] = "Entreprise"

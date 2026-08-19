@@ -2,6 +2,7 @@
 
 import base64
 import io
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.files.base import ContentFile
@@ -20,6 +21,7 @@ from ..models import (
 )
 from ..services import excel, pdf
 from .factories import (
+    TODAY,
     jpeg_bytes,
     make_chantier,
     make_control_report,
@@ -45,6 +47,36 @@ class PdfExportTest(MemberClientMixin, TestCase):
         self.report = make_control_report(chantier=self.chantier)
         seed_sections(self.report)
         make_measure(self.report)
+
+    def test_the_first_page_is_aired_and_section_04_fills_its_page(self):
+        """Mise en page : sections 01–02 aérées, section 04 occupant sa page.
+
+        Les valeurs exactes sont un choix de maquette ; ce qui compte et
+        se casse silencieusement, c'est le rapport entre elles — un en-tête
+        plus serré que le corps, ou une section 04 tassée alors qu'elle a
+        une page pour elle seule.
+        """
+        html = pdf.render_html(
+            "sene_chantiers/pdf/control_report.html",
+            pdf._control_report_context(self.report),
+        )
+
+        def millimetres(rule, prop):
+            block = html.split(rule, 1)[1].split("}", 1)[0]
+            value = block.split(prop, 1)[1].split(";", 1)[0]
+            first = value.split(":")[-1].strip().split()[0]
+            return float(first.replace("mm", ""))
+
+        # L'espace sous le bandeau d'en-tête dépasse celui entre sections :
+        # c'est ce qui aère le haut de la première page.
+        between_sections = millimetres(".section {", "margin-bottom")
+        under_header = millimetres(".metastrip {", "margin-bottom")
+        self.assertGreater(under_header, between_sections)
+
+        # La section 04 a sa page : ses lignes respirent au lieu d'être
+        # compressées pour gagner une place dont elle n'a pas besoin.
+        compact = millimetres(".grid.compact td {", "padding")
+        self.assertGreaterEqual(compact, 1.5)
 
     def test_html_carries_no_photograph(self):
         """Les photos vont au courriel, jamais dans le rapport."""
@@ -183,6 +215,61 @@ class PdfExportTest(MemberClientMixin, TestCase):
         self.assertContains(response, "indisponible")
 
 
+class ExportFilenameTest(MemberClientMixin, TestCase):
+    """Un rapport, un nom — le même dans les trois sorties.
+
+    Le n° de suivi manquait partout : trois rapports d'un même dossier
+    arrivaient dans le dossier de téléchargements sous des noms
+    indiscernables.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.chantier = make_chantier(satac_number=999900)
+        self.report = make_control_report(chantier=self.chantier)
+        seed_sections(self.report)
+        self.followup = make_followup(self.chantier, user=self.user)
+
+    @patch("sene_chantiers.services.pdf.html_to_pdf", return_value=b"%PDF-1.7")
+    def test_the_pdf_filename_carries_the_followup_number(self, _render):
+        cases = [
+            (["controle", self.report.pk], "rapport_controle_999900.pdf"),
+            (["suivi", self.followup.pk], "rapport_suivi1_999900.pdf"),
+        ]
+        for args, expected in cases:
+            with self.subTest(expected=expected):
+                response = self.client.get(
+                    reverse("sene_chantiers:pdf_export", args=args))
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(expected, response["Content-Disposition"])
+
+    def test_the_email_attachment_uses_the_same_name(self):
+        from django.core import mail
+
+        from ..services import emails as email_service
+
+        record = EmailRecord.objects.create(
+            chantier=self.chantier,
+            corrective_measure_report=self.followup,
+            template_used=EmailTemplate.NON_CONFORMITES,
+            recipient_email="destinataire@example.ch",
+            subject="Objet",
+            body="Corps",
+        )
+        email_service.send(record, pdf_bytes=b"%PDF-1.7")
+        attachments = dict(
+            (name, None) for name, _content, _type in mail.outbox[0].attachments
+        )
+        self.assertIn("rapport_suivi1_999900.pdf", attachments)
+
+    def test_the_three_outputs_agree(self):
+        """Aucune sortie ne doit inventer sa propre convention."""
+        from ..labels import export_stem
+
+        self.assertEqual(export_stem(self.report), "controle_999900")
+        self.assertEqual(export_stem(self.followup), "suivi1_999900")
+
+
 class ExcelExportTest(MemberClientMixin, TestCase):
     def setUp(self):
         super().setUp()
@@ -212,11 +299,32 @@ class ExcelExportTest(MemberClientMixin, TestCase):
 
     def test_view_streams_a_workbook(self):
         response = self.client.get(
-            reverse("sene_chantiers:excel_export", args=[999800])
+            reverse("sene_chantiers:excel_export",
+                    args=["controle", self.report.pk])
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("spreadsheetml", response["Content-Type"])
-        self.assertIn("dossier_999800.xlsx", response["Content-Disposition"])
+        self.assertIn("dossier_controle_999800.xlsx",
+                      response["Content-Disposition"])
+
+    def test_the_filename_names_the_report_it_was_launched_from(self):
+        """Sinon chaque ligne télécharge le même nom de fichier."""
+        # Créé après, mais daté avant : le numéro suit les dates, pas
+        # l'ordre d'insertion.
+        earlier = make_followup(self.chantier, user=self.user,
+                                follow_up_date=TODAY - timedelta(days=10))
+        later = self.chantier.corrective_measure_reports.exclude(
+            pk=earlier.pk).get()
+        cases = [
+            (["controle", self.report.pk], "dossier_controle_999800.xlsx"),
+            (["suivi", earlier.pk], "dossier_suivi1_999800.xlsx"),
+            (["suivi", later.pk], "dossier_suivi2_999800.xlsx"),
+        ]
+        for args, expected in cases:
+            with self.subTest(expected=expected):
+                response = self.client.get(
+                    reverse("sene_chantiers:excel_export", args=args))
+                self.assertIn(expected, response["Content-Disposition"])
 
     def test_lazy_labels_are_resolved(self):
         """openpyxl refuse les proxies de traduction."""

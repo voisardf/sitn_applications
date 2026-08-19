@@ -150,7 +150,7 @@
                         </a>
                       {% endif %}
                       <a class="btn sc-icon-btn is-excel"
-                         href="{% url 'sene_chantiers:excel_export' satac_number=chantier.satac_number %}"
+                         href="{% url 'sene_chantiers:excel_export' kind=report.kind_slug pk=report.pk %}"
                          title="Export Excel du dossier">
                         <i class="bi bi-file-earmark-spreadsheet"></i>
                       </a>

@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
 
+from ..labels import export_stem
 from ..models import (
     Appreciation,
     ControlReport,
@@ -217,7 +218,7 @@ def send(record, pdf_bytes=None):
     )
     if pdf_bytes:
         message.attach(
-            f"rapport_{record.chantier.satac_number}.pdf",
+            f"rapport_{export_stem(record.report)}.pdf",
             pdf_bytes,
             "application/pdf",
         )

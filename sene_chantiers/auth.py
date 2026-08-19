@@ -1,7 +1,8 @@
 """Access control for sene_chantiers.
 
-Every view requires SSO authentication AND membership of the
-`sene_chantiers_admin` group. The group is created manually by an
+Every view requires SSO authentication AND membership of the group named
+by `settings.SENE_CHANTIERS_ADMIN_GROUP` (`sene_chantiers_gestion` by
+default, settable per instance). The group is created manually by an
 administrator; this module only checks for it, never creates it.
 """
 
