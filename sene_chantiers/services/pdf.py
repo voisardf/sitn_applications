@@ -78,15 +78,6 @@ def _endpoint(path):
     return f"{settings.SENE_CHANTIERS_WEASYPRINT_URL.rstrip('/')}{path}"
 
 
-def service_available():
-    """Cheap health probe, so a view can degrade with a clear message."""
-    try:
-        response = requests.get(_endpoint("/health"), timeout=5)
-        return response.ok
-    except requests.RequestException:
-        return False
-
-
 def render_html(template_name, context):
     return render_to_string(template_name, context)
 

@@ -17,8 +17,8 @@ import unittest
 from datetime import timedelta
 from pathlib import Path
 
-from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.geos import Point
 from django.db import connection
 from django.utils import timezone
@@ -142,18 +142,29 @@ def a_commune():
 # ---------------------------------------------------------------------------
 
 
-def make_user(username="inspecteur", in_group=True, **kwargs):
+def grant_access(user):
+    """Give a user the application's permission, through a group.
+
+    A group rather than a direct grant, because that is how it is done in
+    production: the admin puts the inspectors in one group and grants it
+    `manage_dossiers` once.
+    """
+    group, _ = Group.objects.get_or_create(name="sene_chantiers_gestion")
+    group.permissions.add(
+        Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(Chantier),
+            codename="manage_dossiers",
+        )
+    )
+    user.groups.add(group)
+    return user
+
+
+def make_user(username="inspecteur", with_access=True, **kwargs):
     user = User.objects.create_user(
         username=username, password="x", email=f"{username}@example.ch", **kwargs
     )
-    if in_group:
-        # Never the literal: the group's name is an instance setting, and
-        # hardcoding it here would make the tests pass against a name the
-        # application no longer looks for.
-        group, _ = Group.objects.get_or_create(
-            name=settings.SENE_CHANTIERS_ADMIN_GROUP)
-        user.groups.add(group)
-    return user
+    return grant_access(user) if with_access else user
 
 
 def make_chantier(satac_number=999001, **kwargs):

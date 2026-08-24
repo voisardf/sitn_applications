@@ -1,0 +1,33 @@
+{% comment %}
+La carte « Appréciation globale », identique sur les deux rapports.
+
+Le texte sous les pastilles (`note`) est le seul écart : le contrôle
+initial calcule son appréciation depuis la checklist de la section 04, le
+suivi depuis l'état des mesures. Les identifiants `#global-appreciation-
+choices` et `#appreciation-note` sont ceux que le script de cascade de
+chaque page va chercher.
+{% endcomment %}
+<section class="sc-section h-100">
+  <header>
+    <div class="sc-section-head-left">
+      <span class="sc-badge"><i class="bi bi-award"></i></span>
+      <p class="mb-0">Appréciation globale</p>
+    </div>
+  </header>
+  <div class="sc-section-body">
+    {{ form.global_appreciation_is_manual_override }}
+    <div id="global-appreciation-choices">
+      {% for radio in form.global_appreciation %}
+        <div class="form-check">
+          {{ radio.tag }}
+          <label class="form-check-label" for="{{ radio.id_for_label }}">
+            <span class="sc-pill sc-pill--{{ radio.data.value }}">
+              {{ radio.choice_label }}
+            </span>
+          </label>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="form-text mb-0" id="appreciation-note">{{ note }}</p>
+  </div>
+</section>

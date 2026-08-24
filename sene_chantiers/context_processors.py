@@ -1,6 +1,6 @@
 """Template context shared across sene_chantiers views."""
 
-from .auth import user_is_sene_chantiers_admin
+from .auth import PERMISSION
 from .services import deadlines
 
 
@@ -19,7 +19,8 @@ def deadline_banner(request):
     match = getattr(request, "resolver_match", None)
     if match is None or match.app_name != "sene_chantiers":
         return {}
-    if not user_is_sene_chantiers_admin(getattr(request, "user", None)):
+    user = getattr(request, "user", None)
+    if user is None or not user.has_perm(PERMISSION):
         return {}
     counts = deadlines.banner_counts()
     return {

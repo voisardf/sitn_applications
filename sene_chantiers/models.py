@@ -318,6 +318,13 @@ class Chantier(models.Model):
     class Meta:
         db_table = SCHEMA + "chantier"
         ordering = ["-created_at"]
+        # The application's single access permission, checked by every view
+        # (see auth.py). Declared here rather than on a model of its own
+        # because the dossier is what the application is about; granting it
+        # is a group membership managed in the admin.
+        permissions = [
+            ("manage_dossiers", _("Peut utiliser le suivi de chantiers")),
+        ]
         verbose_name = _("Chantier")
         verbose_name_plural = _("Chantiers")
 

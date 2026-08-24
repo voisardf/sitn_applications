@@ -1,0 +1,36 @@
+{% comment %}
+Le récapitulatif du chantier, identique sur les deux rapports.
+
+`show_inspector` n'est vrai que sur le rapport de suivi : le contrôle
+initial affiche l'inspecteur dans son propre encadré « Inspecteur SENE »,
+avec la date de signature, et le répéter ici ne dirait rien de plus.
+{% endcomment %}
+{% load sene_chantiers_extras %}
+<section class="sc-section h-100">
+  <header>
+    <div class="sc-section-head-left">
+      <span class="sc-badge">i</span>
+      <p class="mb-0">Informations du chantier</p>
+    </div>
+  </header>
+  <div class="sc-section-body">
+    <dl class="sc-meta">
+      <div><div class="label">N° SATAC</div>
+        <div class="value">{{ chantier.satac_number }}</div></div>
+      <div><div class="label">Chantier</div>
+        <div class="value">{{ chantier.site_name }}</div></div>
+      <div><div class="label">Adresse</div>
+        <div class="value">{{ chantier.adresse }}</div></div>
+      <div><div class="label">Commune</div>
+        <div class="value">{{ chantier.commune.comnom }}</div></div>
+      <div><div class="label">Maître d'ouvrage</div>
+        <div class="value">{{ chantier.maitre_ouvrage }}</div></div>
+      <div><div class="label">Entreprise générale</div>
+        <div class="value">{{ chantier.entreprise_generale|default:"—" }}</div></div>
+      {% if show_inspector %}
+        <div><div class="label">Inspecteur</div>
+          <div class="value">{{ report.inspector|display_name }}</div></div>
+      {% endif %}
+    </dl>
+  </div>
+</section>

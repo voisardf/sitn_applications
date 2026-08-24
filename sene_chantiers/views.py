@@ -1,7 +1,7 @@
 """Views for sene_chantiers.
 
-Every view is gated on SSO authentication plus membership of the
-application's access group (see auth.py).
+Every view is gated on SSO authentication plus the application's own
+Django permission (see auth.py).
 """
 
 import os
@@ -9,13 +9,12 @@ import os
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Max
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from .auth import sene_chantiers_admin_required
+from .auth import sene_chantiers_access_required
 from .forms import (
     ChantierForm,
     ControlPointAnswerFormSet,
@@ -135,12 +134,11 @@ def _dossier_emails(chantier):
     return rows
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def home(request):
     """Search block plus the most recently modified dossiers."""
     recent = (
         Chantier.objects.select_related("commune")
-        .annotate(last_touched=Max("corrective_measure_reports__updated_at"))
         .order_by("-created_at")[:RECENT_DOSSIERS_LIMIT]
     )
     return render(
@@ -150,7 +148,7 @@ def home(request):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def satac_lookup(request):
     """Autocomplete endpoint backing the search block."""
     term = request.GET.get("query", "")
@@ -174,7 +172,7 @@ def satac_lookup(request):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def chantier_landing(request, satac_number):
     """Récapitulatif for one SATAC number.
 
@@ -213,7 +211,7 @@ def chantier_landing(request, satac_number):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def chantier_create(request, satac_number):
     """Open a dossier for a SATAC number that does not have one yet."""
     existing = Chantier.objects.filter(satac_number=satac_number).first()
@@ -273,7 +271,7 @@ def _build_report_skeleton(chantier, user):
     return report
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def control_report_create(request, satac_number):
     """Open the initial report for a dossier that has none yet."""
     chantier = get_object_or_404(Chantier, satac_number=satac_number)
@@ -287,7 +285,7 @@ def control_report_create(request, satac_number):
     return redirect("sene_chantiers:control_report_edit", satac_number=satac_number)
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def control_report_edit(request, satac_number):
     """Sections 01 to 04 of the initial report.
 
@@ -304,33 +302,25 @@ def control_report_edit(request, satac_number):
         if posted_satac and str(posted_satac) != str(satac_number):
             raise PermissionDenied("Le rapport soumis ne correspond pas au dossier.")
 
-        form = ControlReportForm(request.POST, instance=report)
-        themes = ThemeAssessmentFormSet(request.POST, instance=report, prefix="themes")
-        answers = ControlPointAnswerFormSet(
-            request.POST, instance=report, prefix="answers"
-        )
-        measures = CorrectiveMeasureFormSet(
-            request.POST, instance=report, prefix="measures"
-        )
+        # Bound in draft mode from the start when that is the button that
+        # was pressed. Validated against the normal required set, a single
+        # empty field would discard the whole form — and one empty
+        # observation the whole themes formset — losing everything the
+        # inspector had just typed.
         is_draft = "save_draft" in request.POST
+        relaxed = {"form_kwargs": {"draft": is_draft}}
+        form = ControlReportForm(request.POST, instance=report, draft=is_draft)
+        themes = ThemeAssessmentFormSet(
+            request.POST, instance=report, prefix="themes", **relaxed)
+        answers = ControlPointAnswerFormSet(
+            request.POST, instance=report, prefix="answers", **relaxed)
+        measures = CorrectiveMeasureFormSet(
+            request.POST, instance=report, prefix="measures", **relaxed)
 
         if is_draft:
-            # Re-bind with every field optional: validated against the
-            # normal required set, a single empty field would discard the
-            # whole form and lose what the inspector just typed.
-            form = ControlReportForm(request.POST, instance=report, draft=True)
-            # The formsets need relaxing too: validated normally, a single
-            # empty observation invalidates the whole themes formset and
-            # every observation typed so far is silently dropped — and an
-            # incomplete measure disappears the same way.
-            draft_kwargs = {"form_kwargs": {"draft": True}}
-            themes = ThemeAssessmentFormSet(
-                request.POST, instance=report, prefix="themes", **draft_kwargs)
-            answers = ControlPointAnswerFormSet(
-                request.POST, instance=report, prefix="answers", **draft_kwargs)
-            measures = CorrectiveMeasureFormSet(
-                request.POST, instance=report, prefix="measures", **draft_kwargs)
-            _save_draft(report, request, form, themes, answers, measures)
+            _save_draft(report, form, themes, answers)
+            if measures.is_valid():
+                _save_measures(measures, report)
             messages.info(request, "Brouillon enregistré.")
             return redirect(
                 f"{reverse('sene_chantiers:control_report_edit', args=[satac_number])}"
@@ -346,7 +336,9 @@ def control_report_edit(request, satac_number):
             themes.save()
             answers.save()
             _save_measures(measures, report)
-            _apply_cascades(report, form)
+            _apply_cascade(
+                report, form, appreciation_service.recompute_control_report(report)
+            )
             messages.success(request, "Rapport enregistré.")
             return redirect(
                 "sene_chantiers:chantier_landing", satac_number=satac_number
@@ -376,6 +368,8 @@ def control_report_edit(request, satac_number):
             "measure_formset": measures,
             "answers_by_theme": _group_answers(answers, themes),
             "incomplete_sections": incomplete_sections,
+            "form_id": "control-report-form",
+            "tabs": CONTROL_TABS,
             "active_tab": _active_tab(request),
             "conformity_choices": Conformity.choices,
             "read_only": read_only,
@@ -401,13 +395,17 @@ def _cross_row_errors(form, measures):
     return errors
 
 
-def _apply_cascades(report, form):
-    """Recompute theme and global appreciations unless overridden."""
-    suggested = appreciation_service.recompute_control_report(report)
-    if not form.cleaned_data.get("global_appreciation_is_manual_override"):
-        if report.global_appreciation != suggested:
-            report.global_appreciation = suggested
-            report.save(update_fields=["global_appreciation"])
+def _apply_cascade(report, form, suggested):
+    """Store the recomputed appreciation unless the inspector overrode it.
+
+    Shared by both report types: only the way `suggested` is arrived at
+    differs, and that belongs to the appreciation service.
+    """
+    if form.cleaned_data.get("global_appreciation_is_manual_override"):
+        return
+    if report.global_appreciation != suggested:
+        report.global_appreciation = suggested
+        report.save(update_fields=["global_appreciation"])
 
 
 def _save_measures(formset, report):
@@ -446,26 +444,43 @@ def renumber_measures(report):
             CorrectiveMeasure.objects.filter(pk=measure.pk).update(order=position)
 
 
-# The two report forms use different tab ids, but the same mechanism: the
-# page posts the tab it was submitted from and the redirect carries it back,
-# so saving from section 04 does not throw the inspector back to section 01.
-CONTROL_TABS = ("tab01", "tab02", "tab03", "tab04")
-FOLLOWUP_TABS = ("f01", "f02", "f03", "f04")
+# The two report forms use different tab ids, but the same four-tab shell:
+# the page posts the tab it was submitted from and the redirect carries it
+# back, so saving from section 04 does not throw the inspector back to
+# section 01. Handed to the template as data, which is what lets both
+# reports render the strip from one shared shell.
+CONTROL_TABS = (
+    {"code": "tab01", "number": "01", "label": "Informations générales"},
+    {"code": "tab02", "number": "02", "label": "Synthèse par thème"},
+    {"code": "tab03", "number": "03", "label": "Mesures à prendre"},
+    {"code": "tab04", "number": "04", "label": "Détail des thèmes"},
+)
+FOLLOWUP_TABS = (
+    {"code": "f01", "number": "01", "label": "Informations générales"},
+    {"code": "f02", "number": "02", "label": "Contrôle des mesures"},
+    {"code": "f03", "number": "03", "label": "Observations générales"},
+    {"code": "f04", "number": "04", "label": "Conclusion"},
+)
 
 
 def _active_tab(request, tabs=CONTROL_TABS):
     """Which tab the form was submitted from, so we can return to it."""
-    tab = request.POST.get("active_tab") or request.GET.get("tab") or tabs[0]
-    return tab if tab in tabs else tabs[0]
+    codes = [tab["code"] for tab in tabs]
+    tab = request.POST.get("active_tab") or request.GET.get("tab") or codes[0]
+    return tab if tab in codes else codes[0]
 
 
-def _save_draft(report, request, form, themes, answers, measures):
+def _save_draft(report, form, *formsets):
     """Persist a partially filled report without enforcing completeness.
 
-    Only fields that carry a value are written. A draft must never erase
-    what is already stored, and an empty value cannot be pushed into a
-    column the database declares NOT NULL — which is what a blank control
-    date would do on a report opened and immediately saved.
+    Shared by both report types. Only fields that carry a value are
+    written: a draft must never erase what is already stored, and an empty
+    value cannot be pushed into a column the database declares NOT NULL —
+    which is what a blank control date would do on a report opened and
+    immediately saved.
+
+    The measures formset is saved by its caller rather than passed here:
+    its rows need their positions assigned, which is `_save_measures`.
     """
     if form.is_valid():
         # ModelForm._post_clean() has already copied cleaned_data onto the
@@ -479,42 +494,17 @@ def _save_draft(report, request, form, themes, answers, measures):
             else:
                 setattr(report, name, value)
         report.save()
-    for formset in (themes, answers):
+    for formset in formsets:
         if formset.is_valid():
             formset.save()
-    if measures.is_valid():
-        _save_measures(measures, report)
 
 
 # Which tab each part of the initial report is filled in. Used to tell the
 # inspector *where* something is missing: the failure is otherwise
 # invisible when the offending field sits in a tab that is not on screen.
-CONTROL_SECTIONS = {
-    "01": "Informations générales",
-    "02": "Synthèse par thème",
-    "03": "Mesures à prendre",
-    "04": "Détail des thèmes",
-}
-
-
-def _save_followup_draft(report, form, followups):
-    """Persist a partially filled follow-up, without erasing what is stored.
-
-    Mirror of `_save_draft` for the initial report, including the part that
-    is easy to miss: `ModelForm._post_clean()` has already copied the
-    cleaned data onto the instance, so a field left empty has to be put
-    back explicitly or it reaches a NOT NULL column as a blank.
-    """
-    if form.is_valid():
-        stored = type(report).objects.get(pk=report.pk)
-        for name, value in form.cleaned_data.items():
-            if value in (None, "") and not report._meta.get_field(name).null:
-                setattr(report, name, getattr(stored, name))
-            else:
-                setattr(report, name, value)
-        report.save()
-    if followups.is_valid():
-        followups.save()
+# Derived from the tab strip, so the banner and the tab it points at can
+# never disagree about a section's name.
+CONTROL_SECTIONS = {tab["number"]: tab["label"] for tab in CONTROL_TABS}
 
 
 def _incomplete_control_sections(form, themes, answers, measures):
@@ -619,7 +609,7 @@ _CARRY_OVER_STATUS = {
 }
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def corrective_measure_report_create(request, satac_number):
     """Open the next follow-up, chained from the most recent control."""
     chantier = get_object_or_404(Chantier, satac_number=satac_number)
@@ -685,7 +675,7 @@ def corrective_measure_report_create(request, satac_number):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def corrective_measure_report_edit(request, pk):
     """Sections 01 to 04 of a corrective-measures follow-up report."""
     report = get_object_or_404(
@@ -699,23 +689,19 @@ def corrective_measure_report_edit(request, pk):
         if posted_satac and str(posted_satac) != str(chantier.satac_number):
             raise PermissionDenied("Le rapport soumis ne correspond pas au dossier.")
 
-        form = CorrectiveMeasureReportForm(request.POST, instance=report)
-        followups = MeasureFollowUpFormSet(
-            request.POST, instance=report, prefix="followups"
-        )
+        # Same treatment as the initial report: bound relaxed when the
+        # draft button was pressed. Kept strict, one missing observation
+        # invalidated the whole table and silently dropped everything else
+        # typed in it — responsible, status, deadline.
         is_draft = "save_draft" in request.POST
+        form = CorrectiveMeasureReportForm(
+            request.POST, instance=report, draft=is_draft)
+        followups = MeasureFollowUpFormSet(
+            request.POST, instance=report, prefix="followups",
+            form_kwargs={"draft": is_draft})
 
         if is_draft:
-            # Same treatment as the initial report: re-bind with every
-            # field optional, formset included. Kept strict, one missing
-            # observation invalidated the whole table and silently dropped
-            # everything else typed in it — responsible, status, deadline.
-            form = CorrectiveMeasureReportForm(
-                request.POST, instance=report, draft=True)
-            followups = MeasureFollowUpFormSet(
-                request.POST, instance=report, prefix="followups",
-                form_kwargs={"draft": True})
-            _save_followup_draft(report, form, followups)
+            _save_draft(report, form, followups)
             messages.info(request, "Brouillon enregistré.")
             return redirect(
                 f"{reverse('sene_chantiers:corrective_measure_report_edit', args=[report.pk])}"
@@ -725,7 +711,13 @@ def corrective_measure_report_edit(request, pk):
         if form.is_valid() and followups.is_valid():
             report = form.save()
             followups.save()
-            _apply_followup_cascade(report, form)
+            _apply_cascade(
+                report,
+                form,
+                appreciation_service.followup_global_appreciation(
+                    list(report.measure_followups.values_list("status", flat=True))
+                ),
+            )
             messages.success(request, "Rapport de suivi enregistré.")
             return redirect(
                 "sene_chantiers:chantier_landing",
@@ -743,6 +735,8 @@ def corrective_measure_report_edit(request, pk):
             "report": report,
             "form": form,
             "followup_formset": followups,
+            "form_id": "followup-form",
+            "tabs": FOLLOWUP_TABS,
             "active_tab": _active_tab(request, FOLLOWUP_TABS),
             "first_control_date": chantier.control_report.control_date,
             "observations": followup_observations(report),
@@ -754,18 +748,6 @@ def corrective_measure_report_edit(request, pk):
             "conclusion_lines": followup_conclusion_lines(),
         },
     )
-
-
-def _apply_followup_cascade(report, form):
-    """Recompute the global appreciation from the measure statuses."""
-    statuses = list(
-        report.measure_followups.values_list("status", flat=True)
-    )
-    suggested = appreciation_service.followup_global_appreciation(statuses)
-    if not form.cleaned_data.get("global_appreciation_is_manual_override"):
-        if report.global_appreciation != suggested:
-            report.global_appreciation = suggested
-            report.save(update_fields=["global_appreciation"])
 
 
 def _report_from_kind(kind, pk):
@@ -790,7 +772,7 @@ def _photo_payload(photo):
     }
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def photo_upload(request, kind, pk):
     """Stage an uploaded photo; the worker sanitises it out of band."""
     report = _report_from_kind(kind, pk)
@@ -821,7 +803,7 @@ def photo_upload(request, kind, pk):
     return JsonResponse(_photo_payload(photo), status=201)
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def photo_caption(request, pk):
     """Save the per-photo remark."""
     photo = get_object_or_404(Photo, pk=pk)
@@ -834,7 +816,7 @@ def photo_caption(request, pk):
     return JsonResponse(_photo_payload(photo))
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def photo_delete(request, pk):
     """Remove a photo from a report that is still editable."""
     photo = get_object_or_404(Photo, pk=pk)
@@ -846,7 +828,7 @@ def photo_delete(request, pk):
     return JsonResponse({"deleted": True})
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def photo_status(request, kind, pk):
     """Poll the queue so the UI can show progress while the worker runs."""
     report = _report_from_kind(kind, pk)
@@ -855,7 +837,7 @@ def photo_status(request, kind, pk):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def photo_file(request, pk):
     """Stream a sanitised photo from the read-only data volume.
 
@@ -874,7 +856,7 @@ def photo_file(request, pk):
     return FileResponse(open(path, "rb"))
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def email_manager(request, kind, pk):
     """Prepare, edit, save as draft and send a report's notification email.
 
@@ -968,7 +950,7 @@ def email_manager(request, kind, pk):
     )
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def pdf_export(request, kind, pk):
     """Render one report through the WeasyPrint service and stream it."""
     report = _report_from_kind(kind, pk)
@@ -988,7 +970,7 @@ def pdf_export(request, kind, pk):
     return response
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def excel_export(request, kind, pk):
     """Whole-dossier workbook, generated per request and never stored.
 
@@ -1011,7 +993,7 @@ def excel_export(request, kind, pk):
     return response
 
 
-@sene_chantiers_admin_required
+@sene_chantiers_access_required
 def deadlines_view(request):
     """Every corrective measure approaching or past its deadline.
 

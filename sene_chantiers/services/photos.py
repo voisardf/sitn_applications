@@ -10,7 +10,6 @@ import logging
 import os
 from io import BytesIO
 
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError

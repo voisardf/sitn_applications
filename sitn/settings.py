@@ -278,12 +278,6 @@ SENE_CHANTIERS_DEADLINE_DIGEST_DAY_OF_WEEK = int(
 SENE_CHANTIERS_DEADLINE_DIGEST_HOUR = int(
     os.environ.get('SENE_CHANTIERS_DEADLINE_DIGEST_HOUR', 8)
 )
-# Group whose members may use the application (created manually in admin).
-# Configurable per instance: the group is administered by hand, and its
-# name has already changed once.
-SENE_CHANTIERS_ADMIN_GROUP = os.environ.get(
-    'SENE_CHANTIERS_ADMIN_GROUP', 'sene_chantiers_gestion'
-)
 SENE_CHANTIERS_WEASYPRINT_URL = os.environ.get(
     'SENE_CHANTIERS_WEASYPRINT_URL', 'http://localhost:5001'
 )

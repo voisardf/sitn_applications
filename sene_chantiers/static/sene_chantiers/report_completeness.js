@@ -14,13 +14,16 @@
   const form = document.querySelector('form[data-completeness-guard]');
   if (!form) return;
 
-  const SECTIONS = { tab01: '01', tab02: '02', tab03: '03', tab04: '04' };
-
+  // Le libellé vient du bouton d'onglet lui-même, jamais d'une table tenue
+  // à la main ici : les codes diffèrent entre les deux rapports (tab01…
+  // contre f01…), et une table ne connaissant que ceux du contrôle initial
+  // faisait annoncer au rapport de suivi des sections « undefined ».
   function label(pane) {
-    const code = SECTIONS[pane.id];
     const tab = document.querySelector(`[data-tab-code="${pane.id}"]`);
-    const text = tab ? tab.textContent.trim().replace(/\s+/g, ' ') : code;
-    return text || code;
+    if (!tab) return pane.id;
+    return tab.textContent.trim().replace(/\s+/g, ' ')
+        || tab.dataset.tabNumber
+        || pane.id;
   }
 
   // A field counts as missing when it is required and still empty. Radio

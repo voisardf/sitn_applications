@@ -1,9 +1,6 @@
 """Cascades d'appréciation : les trois règles confirmées."""
 
-from datetime import timedelta
-
 from django.test import TestCase
-from django.utils import timezone
 
 from ..models import (
     Appreciation,
@@ -12,11 +9,7 @@ from ..models import (
     Theme,
 )
 from ..services import appreciation
-from .factories import (
-    TODAY,
-    make_control_report,
-    seed_sections,
-)
+from .factories import make_control_report, seed_sections
 
 
 class ThemeAppreciationTest(TestCase):

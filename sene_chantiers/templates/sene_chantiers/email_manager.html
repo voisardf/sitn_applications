@@ -64,16 +64,7 @@
               </div>
             </dl>
 
-            <div class="mb-3">
-              <label class="form-label" for="{{ form.recipient_email.id_for_label }}">
-                Destinataire <span class="text-danger">*</span>
-              </label>
-              {{ form.recipient_email }}
-              {{ form.recipient_email.errors }}
-              <div class="form-text">
-                Repris du maître d'ouvrage, modifiable avant l'envoi.
-              </div>
-            </div>
+            {% include "sene_chantiers/_field.html" with field=form.recipient_email label="Destinataire" %}
           </div>
         </section>
 
@@ -85,20 +76,8 @@
             </div>
           </header>
           <div class="sc-section-body">
-            <div class="mb-3">
-              <label class="form-label" for="{{ form.subject.id_for_label }}">
-                Objet <span class="text-danger">*</span>
-              </label>
-              {{ form.subject }}
-              {{ form.subject.errors }}
-            </div>
-            <div>
-              <label class="form-label" for="{{ form.body.id_for_label }}">
-                Texte du courriel
-              </label>
-              {{ form.body }}
-              {{ form.body.errors }}
-            </div>
+            {% include "sene_chantiers/_field.html" with field=form.subject label="Objet" %}
+            {% include "sene_chantiers/_field.html" with field=form.body label="Texte du courriel" wrapper="mb-0" %}
           </div>
         </section>
 

@@ -1,0 +1,109 @@
+{% extends "sene_chantiers/base.html" %}
+{% comment %}
+Coquille commune aux deux formulaires de rapport.
+
+Les deux pages avaient la même charpente écrite deux fois : fil d'Ariane,
+titre et pastille de verrouillage, ouverture du formulaire, champs cachés
+d'isolation d'onglet, ruban d'onglets, jeu de boutons. Elle vit ici, et
+chaque rapport ne fournit plus que ce qui lui est propre.
+
+Le ruban d'onglets est rendu depuis `tabs` (vues : CONTROL_TABS /
+FOLLOWUP_TABS), ce qui donne au rapport de suivi le `data-tab-code` qui
+lui manquait — sans lui, le garde-fou de complétude nommait ses sections
+« undefined ».
+
+Blocs à remplir :
+  report_title — le titre de la page
+  title_extra  — pastilles supplémentaires à côté du titre
+  tab_panes    — les quatre <div class="tab-pane">, dans l'ordre
+{% endcomment %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-11">
+
+    <nav aria-label="fil d'Ariane" class="mb-2">
+      <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+         class="text-decoration-none">
+        <i class="bi bi-arrow-left"></i> Retour au récapitulatif
+      </a>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <h1 class="sc-page-title">{% block report_title %}{% endblock %}</h1>
+      {% if read_only %}
+        <span class="badge text-bg-secondary">
+          <i class="bi bi-lock"></i> Lecture seule — courriel envoyé
+        </span>
+      {% endif %}
+      {% block title_extra %}{% endblock %}
+    </div>
+
+    <form method="post" novalidate id="{{ form_id }}" data-completeness-guard>
+      {% csrf_token %}
+      {# Tab isolation: the server refuses a save whose SATAC does not match. #}
+      <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
+      {% comment %}
+        L'onglet actif voyage avec le formulaire : après un brouillon ou un
+        refus, l'inspecteur doit retrouver la section où il travaillait, et
+        non être renvoyé à la première.
+      {% endcomment %}
+      <input type="hidden" name="active_tab" id="active-tab" value="{{ active_tab }}">
+
+      {% comment %}
+        Un champ obligatoire non rendu, ou rendu dans un autre onglet que
+        celui affiché, rendait l'échec totalement muet : la page se
+        réaffichait sans message et l'inspecteur croyait avoir enregistré.
+        Ce résumé rend l'échec visible quel que soit l'onglet fautif.
+      {% endcomment %}
+      {% if incomplete_sections %}
+        <div class="alert alert-danger" id="incomplete-warning">
+          <strong>Le rapport n'a pas été enregistré.</strong>
+          Il reste des informations obligatoires à compléter dans
+          {% for section in incomplete_sections %}
+            {% if not forloop.first %}{% if forloop.last %} et {% else %}, {% endif %}{% endif %}
+            <a href="#tab{{ section.code }}" class="alert-link"
+               data-goto-tab="tab{{ section.code }}">{{ section.code }} — {{ section.label }}</a>
+          {% endfor %}.
+          Les onglets concernés sont signalés ci-dessous. Pour interrompre
+          la saisie, utiliser « Enregistrer le brouillon ».
+        </div>
+      {% endif %}
+
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        {% for tab in tabs %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link{% if tab.code == active_tab %} active{% endif %}"
+                    data-bs-toggle="tab" data-bs-target="#{{ tab.code }}"
+                    type="button" role="tab"
+                    data-tab-code="{{ tab.code }}"
+                    data-tab-number="{{ tab.number }}">{{ tab.number }} &nbsp;{{ tab.label }}</button>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <fieldset {% if read_only %}disabled{% endif %}>
+        <div class="tab-content">
+          {% block tab_panes %}{% endblock %}
+        </div>
+      </fieldset>
+
+      {% if not read_only %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-lg"></i> Enregistrer le rapport
+          </button>
+          <button type="submit" name="save_draft" value="1"
+                  class="btn btn-outline-secondary">
+            <i class="bi bi-save"></i> Enregistrer le brouillon
+          </button>
+          <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
+             class="btn btn-outline-secondary">Retour au récapitulatif</a>
+        </div>
+      {% endif %}
+
+    </form>
+
+  </div>
+</div>
+{% endblock %}

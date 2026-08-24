@@ -13,9 +13,7 @@ the human ones stay in step.
 """
 import re
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.test import Client
 from django.urls import reverse
 
@@ -25,6 +23,7 @@ from ..models import (
     FollowUpStatus,
     MeasureStatus,
 )
+from .factories import grant_access
 
 INPUT_RE = re.compile(r'<input[^>]*name="([^"]+)"[^>]*>')
 SELECT_RE = re.compile(r'<select[^>]*name="([^"]+)"[^>]*>(.*?)</select>', re.S)
@@ -130,9 +129,7 @@ class Inspector:
     def __init__(self, username="inspecteur_sim"):
         User = get_user_model()
         self.user, _ = User.objects.get_or_create(username=username)
-        group, _ = Group.objects.get_or_create(
-            name=settings.SENE_CHANTIERS_ADMIN_GROUP)
-        self.user.groups.add(group)
+        grant_access(self.user)
         self.client = Client()
         self.client.force_login(self.user)
 

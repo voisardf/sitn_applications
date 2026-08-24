@@ -1,0 +1,28 @@
+{% comment %}
+Un champ de formulaire : étiquette, widget, erreurs, texte d'aide.
+
+Écrit une fois plutôt qu'à chaque appel — les deux gabarits de rapport
+répétaient ce bloc soixante-quatorze fois, à six ou huit lignes l'unité.
+
+Trois choses viennent du formulaire et non du gabarit, pour qu'elles ne
+puissent pas diverger de forms.py : l'étiquette, l'astérisque (dérivé de
+`field.field.required`, donc un champ rendu facultatif cesse aussitôt
+d'être annoncé obligatoire) et le texte d'aide (`help_texts` du Meta).
+
+Paramètres, tous facultatifs :
+  wrapper — classes de la div englobante (« col-md-3 », « mb-3 »…)
+  label   — remplace l'étiquette du formulaire quand l'écran demande un
+            libellé plus court que le verbose_name du modèle
+{% endcomment %}
+<div class="{{ wrapper|default:'mb-3' }}">
+  <label class="form-label" for="{{ field.id_for_label }}">
+    {{ label|default:field.label }}{% if field.field.required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}
+  </label>
+  {{ field }}
+  {% for error in field.errors %}
+    <div class="invalid-feedback d-block">{{ error }}</div>
+  {% endfor %}
+  {% if field.help_text %}
+    <div class="form-text">{{ field.help_text }}</div>
+  {% endif %}
+</div>

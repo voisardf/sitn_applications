@@ -9,7 +9,6 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.mail import EmailMessage
-from django.db.models import Q
 from django.utils import timezone
 
 from ..models import (

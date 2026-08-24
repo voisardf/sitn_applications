@@ -12,15 +12,8 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from ..models import Chantier, SearchSatac
 from ..services import satac
-from .factories import (
-    a_commune,
-    make_chantier,
-    require_table,
-    seed_at034,
-    seed_search_satac,
-)
+from .factories import make_chantier, seed_at034, seed_search_satac
 
 
 class SatacResolveTest(TestCase):

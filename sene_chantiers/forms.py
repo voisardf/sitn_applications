@@ -1,4 +1,11 @@
-"""Forms for sene_chantiers."""
+"""Forms for sene_chantiers.
+
+Two base classes carry what every form here needs, rather than each form
+repeating it: `BootstrapModelForm` for the widget styling and the two
+adjustments the models cannot express, `DraftableModelForm` for the
+"Enregistrer le brouillon" button. Before them, six near-identical
+`__init__` loops said the same thing six times over.
+"""
 
 from django import forms
 from django.forms import inlineformset_factory
@@ -20,6 +27,74 @@ from .models import (
 )
 
 
+def date_input(**attrs):
+    """A native date picker.
+
+    A function rather than one shared widget instance: `Meta.widgets`
+    values are not copied per field, so a single instance listed for three
+    date fields would have them share one attribute dictionary.
+    """
+    return forms.DateInput(format="%Y-%m-%d", attrs={"type": "date", **attrs})
+
+
+class BootstrapModelForm(forms.ModelForm):
+    """Widget classes, plus the two things the models cannot say.
+
+    `required_anyway` names fields the model lets be blank but a finished
+    report may not leave empty. The column has to accept '' so that an
+    interrupted entry can be stored as a draft; the obligation is
+    therefore the form's to state, not the database's.
+
+    `never_required` names fields that must not be demanded at all. In
+    practice the hidden override flags: a model BooleanField yields a
+    *required* form field, so leaving the box unchecked would fail
+    validation.
+
+    `widget_css` gives the CSS class per field — `None` to leave a widget
+    bare; anything unlisted gets `default_widget_css`.
+    """
+
+    required_anyway = ()
+    never_required = ()
+    widget_css = {}
+    default_widget_css = "form-control"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in self.required_anyway:
+            self.fields[name].required = True
+        for name in self.never_required:
+            self.fields[name].required = False
+        for name, field in self.fields.items():
+            css = self.widget_css.get(name, self.default_widget_css)
+            if css:
+                field.widget.attrs.setdefault("class", css)
+
+
+class DraftableModelForm(BootstrapModelForm):
+    """A form the inspector may save half-filled.
+
+    `draft=True` relaxes every field *and* tells the instance to stand its
+    own completeness rules down — see `BaseReport.is_draft`. Both halves
+    are needed. Without the first, one empty field discards the whole form
+    and the inspector loses exactly what the button promised to keep;
+    without the second, `ModelForm._post_clean()` re-imposes through the
+    model what the form has just relaxed, and the save fails in silence.
+
+    Setting `is_draft` is harmless on the child models that carry no
+    completeness rule of their own: a uniform contract rather than a
+    per-model special case.
+    """
+
+    def __init__(self, *args, draft=False, **kwargs):
+        self.draft = draft
+        super().__init__(*args, **kwargs)
+        self.instance.is_draft = draft
+        if draft:
+            for field in self.fields.values():
+                field.required = False
+
+
 class CommuneChoiceField(forms.ModelChoiceField):
     """cadastre.Commune has no __str__, so give it a readable label here."""
 
@@ -27,13 +102,15 @@ class CommuneChoiceField(forms.ModelChoiceField):
         return obj.comnom
 
 
-class ChantierForm(forms.ModelForm):
+class ChantierForm(BootstrapModelForm):
     """Opens a dossier for one SATAC number.
 
     Only the commune is pre-filled from the permit lookup; the site name,
     address, maître d'ouvrage and entreprise générale are always typed by
     the inspector.
     """
+
+    widget_css = {"commune": "form-select"}
 
     commune = CommuneChoiceField(
         queryset=Commune.objects.only("idobj", "comnom", "numcom").order_by("comnom"),
@@ -56,7 +133,9 @@ class ChantierForm(forms.ModelForm):
                 attrs={"placeholder": "Réaménagement du secteur des Cadolles"}
             ),
             "adresse": forms.TextInput(attrs={"placeholder": "Rue et numéro"}),
-            "maitre_ouvrage": forms.TextInput(attrs={"placeholder": "Nom du maître d'ouvrage"}),
+            "maitre_ouvrage": forms.TextInput(
+                attrs={"placeholder": "Nom du maître d'ouvrage"}
+            ),
             "maitre_ouvrage_email": forms.EmailInput(
                 attrs={"placeholder": "prenom.nom@exemple.ch"}
             ),
@@ -67,24 +146,27 @@ class ChantierForm(forms.ModelForm):
 
     def __init__(self, *args, satac_result=None, **kwargs):
         super().__init__(*args, **kwargs)
-        # Every field is mandatory except the general contractor.
-        for name, field in self.fields.items():
-            field.required = name != "entreprise_generale"
-            css = "form-select" if name == "commune" else "form-control"
-            field.widget.attrs.setdefault("class", css)
-
         # Pre-fill what the permit lookup could resolve, without overriding
-        # anything the inspector has already submitted.
-        if satac_result and not self.is_bound:
-            if satac_result.commune:
-                self.initial.setdefault("commune", satac_result.commune.pk)
+        # anything the inspector has already submitted, and say where the
+        # value came from.
+        if satac_result and not self.is_bound and satac_result.commune:
+            self.initial.setdefault("commune", satac_result.commune.pk)
+            self.fields["commune"].help_text = _(
+                "Pré-renseignée depuis l'autorisation de construire."
+            )
 
 
-DATE_INPUT = forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"})
-
-
-class ControlReportForm(forms.ModelForm):
+class ControlReportForm(DraftableModelForm):
     """Header and section 01/03 free-text panels of the initial report."""
+
+    required_anyway = ("observations_generales", "procedure_controle")
+    never_required = ("global_appreciation_is_manual_override",)
+    widget_css = {
+        "weather_condition": "form-select",
+        "construction_phase": "form-select",
+        "global_appreciation": "form-check-input",
+        "global_appreciation_is_manual_override": None,
+    }
 
     class Meta:
         model = ControlReport
@@ -101,82 +183,71 @@ class ControlReportForm(forms.ModelForm):
             "signature_date",
         ]
         widgets = {
-            "control_date": DATE_INPUT,
-            "next_control_date": DATE_INPUT,
-            "signature_date": DATE_INPUT,
+            "control_date": date_input(),
+            "next_control_date": date_input(),
+            "signature_date": date_input(),
             "observations_generales": forms.Textarea(attrs={"rows": 4}),
             "procedure_controle": forms.Textarea(attrs={"rows": 4}),
             "global_appreciation_is_manual_override": forms.HiddenInput(),
             "global_appreciation": forms.RadioSelect(),
         }
+        help_texts = {
+            "next_control_date": _(
+                "Délai de mise en conformité, requis si non conforme."
+            ),
+        }
 
-    def __init__(self, *args, draft=False, **kwargs):
-        """`draft=True` makes every field optional.
-
-        A draft is explicitly allowed to be incomplete, and it has to
-        persist what has been typed so far. Validating it against the
-        normal required set means one empty field discards the whole form
-        and the inspector loses the work the button promised to keep.
-        """
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # The model's own completeness rules must stand down too, or
-        # _post_clean() re-imposes exactly what this form just relaxed.
-        self.instance.is_draft = draft
-        # Only the temperature and the conditional next-control date may be
-        # left empty; everything else is mandatory (spec 4.2).
-        optional = {"temperature", "next_control_date", "signature_date",
-                    "global_appreciation_is_manual_override"}
-        for name, field in self.fields.items():
-            field.required = False if draft else name not in optional
-            if name in ("weather_condition", "construction_phase"):
-                field.widget.attrs.setdefault("class", "form-select")
-                field.queryset = field.queryset.filter(is_active=True)
-            elif name == "global_appreciation":
-                field.widget.attrs.setdefault("class", "form-check-input")
-            elif name != "global_appreciation_is_manual_override":
-                field.widget.attrs.setdefault("class", "form-control")
+        # Retired reference rows stay readable on old reports but are no
+        # longer offered for a new one.
+        for name in ("weather_condition", "construction_phase"):
+            field = self.fields[name]
+            field.queryset = field.queryset.filter(is_active=True)
 
 
-class ThemeAssessmentForm(forms.ModelForm):
-    """Section 02 row. The appreciation is computed, not typed."""
+class ThemeAssessmentForm(DraftableModelForm):
+    """Section 02 row. The appreciation is computed, not typed.
+
+    Both free-text fields are mandatory; "R.A.S." is an acceptable answer.
+    """
+
+    required_anyway = ("synthesis_remarks", "detail_observations")
+    widget_css = {"appreciation": "form-select sc-appr"}
 
     class Meta:
         model = ThemeAssessment
         fields = ["appreciation", "synthesis_remarks", "detail_observations"]
         widgets = {
-            "synthesis_remarks": forms.Textarea(
-                attrs={"rows": 2, "class": "form-control"}
+            "synthesis_remarks": forms.Textarea(attrs={"rows": 2}),
+            "detail_observations": forms.Textarea(attrs={"rows": 2}),
+        }
+        help_texts = {
+            "detail_observations": _(
+                "Constats pour ce thème, repris dans le rapport PDF."
             ),
-            "detail_observations": forms.Textarea(
-                attrs={"rows": 2, "class": "form-control"}
-            ),
-            "appreciation": forms.Select(attrs={"class": "form-select sc-appr"}),
         }
 
-    def __init__(self, *args, draft=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Free-text remarks are mandatory; "R.A.S." is an acceptable answer.
-        # A draft relaxes them: otherwise one empty remark invalidates the
-        # whole formset and every observation typed so far is discarded.
-        self.fields["synthesis_remarks"].required = not draft
-        self.fields["detail_observations"].required = not draft
 
-
-class ControlPointAnswerForm(forms.ModelForm):
+class ControlPointAnswerForm(DraftableModelForm):
     """Section 04 checklist row: Oui / Non / N.A."""
+
+    widget_css = {"conformity": "form-check-input"}
 
     class Meta:
         model = ControlPointAnswer
         fields = ["conformity"]
-        widgets = {"conformity": forms.RadioSelect(attrs={"class": "form-check-input"})}
+        widgets = {"conformity": forms.RadioSelect()}
 
-    def __init__(self, *args, draft=False, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["conformity"].required = not draft
+        # Exactly the three answers, without the blank choice a ModelForm
+        # adds: an unanswered point is stored as '', but that is not
+        # something the inspector picks on purpose.
         self.fields["conformity"].choices = Conformity.choices
 
 
-class CorrectiveMeasureForm(forms.ModelForm):
+class CorrectiveMeasureForm(DraftableModelForm):
     """Section 03 row.
 
     `order` is deliberately absent: it is the row's position in the list,
@@ -184,24 +255,15 @@ class CorrectiveMeasureForm(forms.ModelForm):
     duplicates and gaps for no benefit. It is displayed as text.
     """
 
+    widget_css = {"status": "form-select"}
+
     class Meta:
         model = CorrectiveMeasure
         fields = ["description", "responsible", "deadline", "status"]
         widgets = {
-            "description": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
-            "responsible": forms.TextInput(attrs={"class": "form-control"}),
-            "deadline": forms.DateInput(
-                format="%Y-%m-%d", attrs={"type": "date", "class": "form-control"}
-            ),
-            "status": forms.Select(attrs={"class": "form-select"}),
+            "description": forms.Textarea(attrs={"rows": 2}),
+            "deadline": date_input(),
         }
-
-    def __init__(self, *args, draft=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        if draft:
-            # A measure being typed is worth keeping even when incomplete.
-            for field in self.fields.values():
-                field.required = False
 
 
 # Section 02 and 04 have a fixed number of rows, seeded when the report is
@@ -221,8 +283,19 @@ CorrectiveMeasureFormSet = inlineformset_factory(
 )
 
 
-class CorrectiveMeasureReportForm(forms.ModelForm):
+class CorrectiveMeasureReportForm(DraftableModelForm):
     """Header, section 01 appreciation and section 03/04 of a follow-up."""
+
+    never_required = (
+        "global_appreciation_is_manual_override",
+        "is_denunciation_escalation",
+    )
+    widget_css = {
+        "global_appreciation": "form-check-input",
+        "is_denunciation_escalation": "form-check-input",
+        "final_closure_state": "form-select",
+        "global_appreciation_is_manual_override": None,
+    }
 
     class Meta:
         model = CorrectiveMeasureReport
@@ -237,60 +310,48 @@ class CorrectiveMeasureReportForm(forms.ModelForm):
             "signature_date",
         ]
         widgets = {
-            "follow_up_date": DATE_INPUT,
-            "next_control_date": DATE_INPUT,
-            "signature_date": DATE_INPUT,
+            "follow_up_date": date_input(),
+            "next_control_date": date_input(),
+            "signature_date": date_input(),
             "new_anomalies_description": forms.Textarea(attrs={"rows": 3}),
             "global_appreciation_is_manual_override": forms.HiddenInput(),
             "global_appreciation": forms.RadioSelect(),
-            "final_closure_state": forms.Select(attrs={"class": "form-select"}),
+        }
+        labels = {
+            # Plus explicite que le verbose_name du modèle, qui sert aussi
+            # de titre de colonne dans l'admin.
+            "is_denunciation_escalation": _(
+                "Dernier contrôle avant dénonciation au Ministère public"
+            ),
+        }
+        help_texts = {
+            "next_control_date": _("Requis si une mesure reste ouverte."),
+            "new_anomalies_description": _(
+                "Laisser vide si aucune nouvelle anomalie n'a été constatée. "
+                "Le texte ci-dessus est régénéré à l'enregistrement."
+            ),
+            "is_denunciation_escalation": _(
+                "Décision de l'inspecteur, indépendante du nombre de mesures "
+                "restantes. Possible dès la deuxième visite."
+            ),
+            "final_closure_state": _(
+                "À renseigner lors de la visite finale qui suit une dénonciation."
+            ),
         }
 
-    def __init__(self, *args, draft=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.instance.is_draft = draft
-        optional = {
-            "next_control_date", "signature_date", "new_anomalies_description",
-            "is_denunciation_escalation", "final_closure_state",
-            "global_appreciation_is_manual_override",
-        }
-        for name, field in self.fields.items():
-            field.required = False if draft else name not in optional
-            if name == "is_denunciation_escalation":
-                field.widget.attrs.setdefault("class", "form-check-input")
-            elif name == "global_appreciation":
-                field.widget.attrs.setdefault("class", "form-check-input")
-            elif name not in ("global_appreciation_is_manual_override",
-                              "final_closure_state"):
-                field.widget.attrs.setdefault("class", "form-control")
 
-
-class MeasureFollowUpForm(forms.ModelForm):
+class MeasureFollowUpForm(DraftableModelForm):
     """Section 02 row: one measure of the initial report, re-checked."""
+
+    widget_css = {"status": "form-select sc-followup-status"}
 
     class Meta:
         model = MeasureFollowUp
         fields = ["findings", "status", "responsible", "new_deadline"]
         widgets = {
-            "findings": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
-            "status": forms.Select(attrs={"class": "form-select sc-followup-status"}),
-            "responsible": forms.TextInput(attrs={"class": "form-control"}),
-            "new_deadline": forms.DateInput(
-                format="%Y-%m-%d", attrs={"type": "date", "class": "form-control"}
-            ),
+            "findings": forms.Textarea(attrs={"rows": 2}),
+            "new_deadline": date_input(),
         }
-
-    def __init__(self, *args, draft=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        # A draft accepts an incomplete row. Kept strict, a single missing
-        # observation invalidates the whole formset and everything typed in
-        # the table — the responsible, the status, the new deadline — is
-        # dropped without a word.
-        self.draft = draft
-        self.instance.is_draft = draft
-        self.fields["findings"].required = not draft
-        self.fields["status"].required = not draft
-        self.fields["new_deadline"].required = False
 
     def clean(self):
         cleaned = super().clean()
@@ -315,14 +376,15 @@ MeasureFollowUpFormSet = inlineformset_factory(
 )
 
 
-class EmailRecordForm(forms.ModelForm):
+class EmailRecordForm(BootstrapModelForm):
     """Subject, body and recipient, all editable before sending."""
 
     class Meta:
         model = EmailRecord
         fields = ["recipient_email", "subject", "body"]
-        widgets = {
-            "recipient_email": forms.EmailInput(attrs={"class": "form-control"}),
-            "subject": forms.TextInput(attrs={"class": "form-control"}),
-            "body": forms.Textarea(attrs={"rows": 18, "class": "form-control"}),
+        widgets = {"body": forms.Textarea(attrs={"rows": 18})}
+        help_texts = {
+            "recipient_email": _(
+                "Repris du maître d'ouvrage, modifiable avant l'envoi."
+            ),
         }

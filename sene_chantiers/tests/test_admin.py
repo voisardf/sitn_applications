@@ -40,7 +40,7 @@ class ReportAdminPermissionTest(TestCase):
 
     def test_superuser_may_edit_an_unlocked_report(self):
         request = self._request(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
         self.assertTrue(self.admin.has_change_permission(request, self.report))
 
@@ -49,7 +49,7 @@ class ReportAdminPermissionTest(TestCase):
         self.report.is_locked = True
         self.report.save()
         request = self._request(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
         self.assertTrue(self.admin.has_change_permission(request, self.report))
 
@@ -59,7 +59,7 @@ class ReportAdminPermissionTest(TestCase):
         make_followup(self.chantier, is_denunciation_escalation=True)
 
         request = self._request(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
         self.assertFalse(self.admin.has_change_permission(request, self.report))
         # Gelé veut dire consultable, pas invisible.
@@ -77,13 +77,13 @@ class ReportAdminPermissionTest(TestCase):
         """
         make_followup(self.chantier, is_denunciation_escalation=True)
         request = self._request(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
         self.assertTrue(self.admin.has_change_permission(request, self.report))
 
     def test_reports_can_never_be_added_or_deleted_here(self):
         request = self._request(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
         self.assertFalse(self.admin.has_add_permission(request))
         self.assertFalse(self.admin.has_delete_permission(request, self.report))
@@ -136,7 +136,7 @@ class ReportAdminRenderingTest(TestCase):
         self.chantier = make_chantier(satac_number=999506)
         self.report = make_control_report(chantier=self.chantier)
         self.client.force_login(
-            make_user("root", in_group=False, is_superuser=True, is_staff=True)
+            make_user("root", with_access=False, is_superuser=True, is_staff=True)
         )
 
     def test_changelist_renders(self):

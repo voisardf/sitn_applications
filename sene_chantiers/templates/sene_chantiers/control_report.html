@@ -1,487 +1,289 @@
-{% extends "sene_chantiers/base.html" %}
-{% load static %}
+{% extends "sene_chantiers/_report_page.html" %}
+{% load static sene_chantiers_extras %}
 
 {% block title %}Rapport de contrôle — {{ chantier.satac_number }}{% endblock %}
+{% block report_title %}Rapport de contrôle environnemental{% endblock %}
 
-{% block content %}
-<div class="row justify-content-center">
-  <div class="col-xl-11">
+{% block tab_panes %}
 
-    <nav aria-label="fil d'Ariane" class="mb-2">
-      <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
-         class="text-decoration-none">
-        <i class="bi bi-arrow-left"></i> Retour au récapitulatif
-      </a>
-    </nav>
+  {# ---------------------------------------------------------- 01 #}
+  <div class="tab-pane fade{% if active_tab == 'tab01' %} show active{% endif %}"
+       id="tab01" role="tabpanel">
+    <section class="sc-section">
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">01</span>
+          <p class="mb-0">En-tête du contrôle</p>
+        </div>
+      </header>
+      <div class="sc-section-body">
+        <div class="row g-3">
+          {% include "sene_chantiers/_field.html" with field=form.control_date wrapper="col-md-3" %}
+          {% include "sene_chantiers/_field.html" with field=form.weather_condition wrapper="col-md-3" %}
+          {% include "sene_chantiers/_field.html" with field=form.temperature wrapper="col-md-2" %}
+          {% include "sene_chantiers/_field.html" with field=form.construction_phase wrapper="col-md-4" %}
+        </div>
+      </div>
+    </section>
 
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-      <h1 class="sc-page-title">Rapport de contrôle environnemental</h1>
-      {% if read_only %}
-        <span class="badge text-bg-secondary">
-          <i class="bi bi-lock"></i> Lecture seule — courriel envoyé
-        </span>
-      {% endif %}
+    <div class="row g-3">
+      <div class="col-lg-7">
+        {% include "sene_chantiers/_chantier_meta.html" %}
+      </div>
+      <div class="col-lg-5">
+        {% include "sene_chantiers/_appreciation_panel.html" with note="Calculée automatiquement depuis la section 04, modifiable manuellement." %}
+      </div>
     </div>
 
-    <form method="post" novalidate id="control-report-form"
-          data-completeness-guard>
-      {% csrf_token %}
-      {# Tab isolation: the server refuses a save whose SATAC does not match. #}
-      <input type="hidden" name="satac_number" value="{{ chantier.satac_number }}">
-      {% comment %}
-        L'onglet actif voyage avec le formulaire : après un brouillon ou un
-        refus, l'inspecteur doit retrouver la section où il travaillait, et
-        non être renvoyé à la 01.
-      {% endcomment %}
-      <input type="hidden" name="active_tab" id="active-tab"
-             value="{{ active_tab|default:'tab01' }}">
-
-      {% comment %}
-        Un champ obligatoire non rendu, ou rendu dans un autre onglet que
-        celui affiché, rendait l'échec totalement muet : la page se
-        réaffichait sans message et l'inspecteur croyait avoir enregistré.
-        Ce résumé rend l'échec visible quel que soit l'onglet fautif.
-      {% endcomment %}
-      {% if incomplete_sections %}
-        <div class="alert alert-danger" id="incomplete-warning">
-          <strong>Le rapport n'a pas été enregistré.</strong>
-          Il reste des informations obligatoires à compléter dans
-          {% for section in incomplete_sections %}
-            {% if not forloop.first %}{% if forloop.last %} et {% else %}, {% endif %}{% endif %}
-            <a href="#tab{{ section.code }}" class="alert-link"
-               data-goto-tab="tab{{ section.code }}">{{ section.code }} — {{ section.label }}</a>
-          {% endfor %}.
-          Les onglets concernés sont signalés ci-dessous. Pour interrompre
-          la saisie, utiliser « Enregistrer le brouillon ».
+    <section class="sc-section">
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge"><i class="bi bi-person"></i></span>
+          <p class="mb-0">Inspecteur SENE</p>
         </div>
-      {% endif %}
-
-      <ul class="nav nav-tabs mb-3" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link{% if active_tab|default:'tab01' == 'tab01' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab01"
-                  type="button" role="tab"
-                  data-tab-code="tab01">01 &nbsp;Informations générales</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link{% if active_tab|default:'tab01' == 'tab02' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab02"
-                  type="button" role="tab"
-                  data-tab-code="tab02">02 &nbsp;Synthèse par thème</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link{% if active_tab|default:'tab01' == 'tab03' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab03"
-                  type="button" role="tab"
-                  data-tab-code="tab03">03 &nbsp;Mesures à prendre</button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link{% if active_tab|default:'tab01' == 'tab04' %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab04"
-                  type="button" role="tab"
-                  data-tab-code="tab04">04 &nbsp;Détail des thèmes</button>
-        </li>
-      </ul>
-
-      <fieldset {% if read_only %}disabled{% endif %}>
-      <div class="tab-content">
-
-        {# ---------------------------------------------------------- 01 #}
-        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab01' %} show active{% endif %}" id="tab01" role="tabpanel">
-          <section class="sc-section">
-            <header>
-              <div class="sc-section-head-left">
-                <span class="sc-badge">01</span>
-                <p class="mb-0">En-tête du contrôle</p>
-              </div>
-            </header>
-            <div class="sc-section-body">
-              <div class="row g-3">
-                <div class="col-md-3">
-                  <label class="form-label" for="{{ form.control_date.id_for_label }}">
-                    Date du contrôle <span class="text-danger">*</span>
-                  </label>
-                  {{ form.control_date }}
-                  {{ form.control_date.errors }}
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label" for="{{ form.weather_condition.id_for_label }}">
-                    Conditions météo <span class="text-danger">*</span>
-                  </label>
-                  {{ form.weather_condition }}
-                  {{ form.weather_condition.errors }}
-                </div>
-                <div class="col-md-2">
-                  <label class="form-label" for="{{ form.temperature.id_for_label }}">
-                    Température (°C)
-                  </label>
-                  {{ form.temperature }}
-                  {{ form.temperature.errors }}
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="{{ form.construction_phase.id_for_label }}">
-                    Phase des travaux <span class="text-danger">*</span>
-                  </label>
-                  {{ form.construction_phase }}
-                  {{ form.construction_phase.errors }}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div class="row g-3">
-            <div class="col-lg-7">
-              <section class="sc-section h-100">
-                <header>
-                  <div class="sc-section-head-left">
-                    <span class="sc-badge">i</span>
-                    <p class="mb-0">Informations du chantier</p>
-                  </div>
-                </header>
-                <div class="sc-section-body">
-                  <dl class="sc-meta">
-                    <div><div class="label">N° SATAC</div>
-                      <div class="value">{{ chantier.satac_number }}</div></div>
-                    <div><div class="label">Chantier</div>
-                      <div class="value">{{ chantier.site_name }}</div></div>
-                    <div><div class="label">Adresse</div>
-                      <div class="value">{{ chantier.adresse }}</div></div>
-                    <div><div class="label">Commune</div>
-                      <div class="value">{{ chantier.commune.comnom }}</div></div>
-                    <div><div class="label">Maître d'ouvrage</div>
-                      <div class="value">{{ chantier.maitre_ouvrage }}</div></div>
-                    <div><div class="label">Entreprise générale</div>
-                      <div class="value">{{ chantier.entreprise_generale|default:"—" }}</div></div>
-                  </dl>
-                </div>
-              </section>
-            </div>
-            <div class="col-lg-5">
-              <section class="sc-section h-100">
-                <header>
-                  <div class="sc-section-head-left">
-                    <span class="sc-badge"><i class="bi bi-award"></i></span>
-                    <p class="mb-0">Appréciation globale</p>
-                  </div>
-                </header>
-                <div class="sc-section-body">
-                  {{ form.global_appreciation_is_manual_override }}
-                  <div id="global-appreciation-choices">
-                    {% for radio in form.global_appreciation %}
-                      <div class="form-check">
-                        {{ radio.tag }}
-                        <label class="form-check-label" for="{{ radio.id_for_label }}">
-                          <span class="sc-pill sc-pill--{{ radio.data.value }}">
-                            {{ radio.choice_label }}
-                          </span>
-                        </label>
-                      </div>
-                    {% endfor %}
-                  </div>
-                  <p class="form-text mb-0" id="appreciation-note">
-                    Calculée automatiquement depuis la section 04, modifiable
-                    manuellement.
-                  </p>
-                </div>
-              </section>
-            </div>
+      </header>
+      <div class="sc-section-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Inspecteur</label>
+            <input type="text" class="form-control"
+                   value="{{ report.inspector|display_name }}" disabled>
           </div>
-
-          <section class="sc-section">
-            <header>
-              <div class="sc-section-head-left">
-                <span class="sc-badge"><i class="bi bi-person"></i></span>
-                <p class="mb-0">Inspecteur SENE</p>
-              </div>
-            </header>
-            <div class="sc-section-body">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Inspecteur</label>
-                  <input type="text" class="form-control"
-                         value="{{ report.inspector.get_full_name|default:report.inspector.username }}"
-                         disabled>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label" for="{{ form.signature_date.id_for_label }}">
-                    Date de signature
-                  </label>
-                  {{ form.signature_date }}
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label" for="{{ form.next_control_date.id_for_label }}">
-                    Prochain contrôle prévu
-                  </label>
-                  {{ form.next_control_date }}
-                  {{ form.next_control_date.errors }}
-                  <div class="form-text">
-                    Délai de mise en conformité, requis si non conforme.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {% include "sene_chantiers/_photo_block.html" %}
+          {% include "sene_chantiers/_field.html" with field=form.signature_date wrapper="col-md-3" %}
+          {% include "sene_chantiers/_field.html" with field=form.next_control_date wrapper="col-md-3" %}
         </div>
-
-        {# ---------------------------------------------------------- 02 #}
-        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab02' %} show active{% endif %}" id="tab02" role="tabpanel">
-          <section class="sc-section">
-            <header>
-              <div class="sc-section-head-left">
-                <span class="sc-badge">02</span>
-                <p class="mb-0">Synthèse par thème — résumé de la section 04</p>
-              </div>
-            </header>
-            <div class="sc-section-body p-0">
-              {{ theme_formset.management_form }}
-              <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col" style="width:18%">Thème</th>
-                      <th scope="col" style="width:16%">Appréciation</th>
-                      <th scope="col" style="width:12%">Points contrôlés</th>
-                      <th scope="col">Remarques principales</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for subform in theme_formset %}
-                      <tr data-theme-id="{{ subform.instance.theme_id }}">
-                        {{ subform.id }}
-                        <td>{{ subform.instance.theme.label }}</td>
-                        <td>{{ subform.appreciation }}</td>
-                        <td class="sc-points-checked text-muted">—</td>
-                        <td>
-                          {{ subform.synthesis_remarks }}
-                          {{ subform.synthesis_remarks.errors }}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {# ---------------------------------------------------------- 03 #}
-        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab03' %} show active{% endif %}" id="tab03" role="tabpanel">
-          <section class="sc-section">
-            <header class="d-flex justify-content-between align-items-center">
-              <div class="sc-section-head-left">
-                <span class="sc-badge">03</span>
-                <p class="mb-0">Mesures à prendre</p>
-              </div>
-              <button type="button" class="btn btn-sm btn-success" id="add-measure">
-                <i class="bi bi-plus-lg"></i> Ajouter une mesure
-              </button>
-            </header>
-            <div class="sc-section-body p-0">
-              {{ measure_formset.management_form }}
-              <div class="table-responsive">
-                <table class="table align-middle mb-0" id="measures-table">
-                  <thead>
-                    <tr>
-                      <th scope="col" style="width:6%">N°</th>
-                      <th scope="col">Mesure</th>
-                      <th scope="col" style="width:18%">Responsable</th>
-                      <th scope="col" style="width:14%">Échéance</th>
-                      <th scope="col" style="width:14%">Statut</th>
-                      <th scope="col" style="width:6%"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for subform in measure_formset %}
-                      <tr class="measure-row">
-                        {{ subform.id }}
-                        <td class="sc-measure-order">
-                          {{ subform.instance.order|default:forloop.counter }}
-                        </td>
-                        <td>{{ subform.description }}{{ subform.description.errors }}</td>
-                        <td>{{ subform.responsible }}</td>
-                        <td>{{ subform.deadline }}</td>
-                        <td>{{ subform.status }}</td>
-                        <td class="text-end">
-                          {% comment %}
-                            La case à cocher pilote la suppression côté
-                            formset ; elle est masquée et remplacée par le
-                            bouton corbeille. La ligne est barrée tant que
-                            l'enregistrement n'a pas eu lieu, pour que le
-                            geste reste réversible. Une fois le courriel
-                            parti, le rapport fait foi : plus de corbeille.
-                          {% endcomment %}
-                          {% if not read_only %}
-                            <label class="btn btn-sm btn-outline-danger mb-0 sc-measure-delete"
-                                   title="Supprimer cette mesure">
-                              <span class="visually-hidden">{{ subform.DELETE }}</span>
-                              <i class="bi bi-trash"></i>
-                            </label>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-              <p class="form-text px-3 pt-2 mb-2">
-                Au moins une mesure est requise lorsque le chantier n'est pas
-                conforme.
-              </p>
-            </div>
-          </section>
-
-          <div class="row g-3">
-            <div class="col-md-6">
-              <section class="sc-section h-100">
-                <header>
-                  <div class="sc-section-head-left">
-                    <span class="sc-badge"><i class="bi bi-chat-left-text"></i></span>
-                    <p class="mb-0">Observations générales</p>
-                  </div>
-                </header>
-                <div class="sc-section-body">
-                  {{ form.observations_generales }}
-                  {{ form.observations_generales.errors }}
-                </div>
-              </section>
-            </div>
-            <div class="col-md-6">
-              <section class="sc-section h-100">
-                <header>
-                  <div class="sc-section-head-left">
-                    <span class="sc-badge"><i class="bi bi-list-check"></i></span>
-                    <p class="mb-0">Procédure de contrôle</p>
-                  </div>
-                </header>
-                <div class="sc-section-body">
-                  {{ form.procedure_controle }}
-                  {{ form.procedure_controle.errors }}
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
-
-        {# ---------------------------------------------------------- 04 #}
-        <div class="tab-pane fade{% if active_tab|default:'tab01' == 'tab04' %} show active{% endif %}" id="tab04" role="tabpanel">
-          {{ answer_formset.management_form }}
-          {% for block in answers_by_theme %}
-            <section class="sc-section" data-theme-block="{{ block.theme.id }}">
-              <header>
-                <div class="sc-section-head-left">
-                  <span class="sc-badge">04</span>
-                  <p class="mb-0">{{ block.theme.label }}</p>
-                </div>
-              </header>
-              <div class="sc-section-body p-0">
-                <div class="table-responsive">
-                  <table class="table align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th scope="col">Point contrôlé</th>
-                        <th scope="col" style="width:32%">Conformité</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% comment %}
-                        Ligne d'en-tête : applique une réponse à tous les
-                        points du thème d'un coup. La plupart des thèmes
-                        sont conformes en bloc ; cocher dix lignes une par
-                        une pour arriver au même résultat est du temps
-                        perdu. Chaque ligne reste modifiable ensuite.
-                      {% endcomment %}
-                      {% comment %}
-                        Raccourci de saisie : la plupart des thèmes sont
-                        conformes de bout en bout, et cocher vingt lignes
-                        une à une n'apporte rien. Chaque ligne reste
-                        modifiable après coup ; ce bouton n'est pas envoyé
-                        au serveur, il ne fait que cocher les lignes.
-                      {% endcomment %}
-                      {% if not read_only %}
-                      <tr class="sc-bulk-row" data-bulk-theme="{{ block.theme.pk }}">
-                        <td class="text-muted">
-                          <i class="bi bi-lightning-charge"></i>
-                          Appliquer à tout le thème
-                        </td>
-                        <td>
-                          <div class="d-flex gap-3">
-                            {% for value, label in conformity_choices %}
-                              <div class="form-check">
-                                <input class="form-check-input sc-bulk-input"
-                                       type="radio"
-                                       name="bulk-{{ block.theme.pk }}"
-                                       id="bulk-{{ block.theme.pk }}-{{ value }}"
-                                       value="{{ value }}">
-                                <label class="form-check-label"
-                                       for="bulk-{{ block.theme.pk }}-{{ value }}">
-                                  {{ label }}
-                                </label>
-                              </div>
-                            {% endfor %}
-                          </div>
-                        </td>
-                      </tr>
-                      {% endif %}
-                      {% for subform in block.forms %}
-                        <tr>
-                          {{ subform.id }}
-                          <td>{{ subform.instance.control_point.label }}</td>
-                          <td>
-                            <div class="d-flex gap-3">
-                              {% for radio in subform.conformity %}
-                                <div class="form-check">
-                                  {{ radio.tag }}
-                                  <label class="form-check-label"
-                                         for="{{ radio.id_for_label }}">
-                                    {{ radio.choice_label }}
-                                  </label>
-                                </div>
-                              {% endfor %}
-                            </div>
-                            {{ subform.conformity.errors }}
-                          </td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-                {% if block.assessment_form %}
-                  <div class="sc-section-body">
-                    <label class="form-label"
-                           for="{{ block.assessment_form.detail_observations.id_for_label }}">
-                      Observations <span class="text-danger">*</span>
-                    </label>
-                    {{ block.assessment_form.detail_observations }}
-                    {{ block.assessment_form.detail_observations.errors }}
-                    <div class="form-text">
-                      Constats pour ce thème, repris dans le rapport PDF.
-                    </div>
-                  </div>
-                {% endif %}
-              </div>
-            </section>
-          {% endfor %}
-        </div>
-
       </div>
-      </fieldset>
+    </section>
 
-      {% if not read_only %}
-        <div class="d-flex flex-wrap gap-2 mt-3">
-          <button type="submit" class="btn btn-success">
-            <i class="bi bi-check-lg"></i> Enregistrer le rapport
-          </button>
-          <button type="submit" name="save_draft" value="1"
-                  class="btn btn-outline-secondary">
-            <i class="bi bi-save"></i> Enregistrer le brouillon
-          </button>
-          <a href="{% url 'sene_chantiers:chantier_landing' satac_number=chantier.satac_number %}"
-             class="btn btn-outline-secondary">Retour au récapitulatif</a>
-        </div>
-      {% endif %}
-
-    </form>
-
+    {% include "sene_chantiers/_photo_block.html" %}
   </div>
-</div>
+
+  {# ---------------------------------------------------------- 02 #}
+  <div class="tab-pane fade{% if active_tab == 'tab02' %} show active{% endif %}"
+       id="tab02" role="tabpanel">
+    <section class="sc-section">
+      <header>
+        <div class="sc-section-head-left">
+          <span class="sc-badge">02</span>
+          <p class="mb-0">Synthèse par thème — résumé de la section 04</p>
+        </div>
+      </header>
+      <div class="sc-section-body p-0">
+        {{ theme_formset.management_form }}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col" style="width:18%">Thème</th>
+                <th scope="col" style="width:16%">Appréciation</th>
+                <th scope="col" style="width:12%">Points contrôlés</th>
+                <th scope="col">Remarques principales</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for subform in theme_formset %}
+                <tr data-theme-id="{{ subform.instance.theme_id }}">
+                  {{ subform.id }}
+                  <td>{{ subform.instance.theme.label }}</td>
+                  <td>{{ subform.appreciation }}</td>
+                  <td class="sc-points-checked text-muted">—</td>
+                  <td>
+                    {{ subform.synthesis_remarks }}
+                    {{ subform.synthesis_remarks.errors }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  {# ---------------------------------------------------------- 03 #}
+  <div class="tab-pane fade{% if active_tab == 'tab03' %} show active{% endif %}"
+       id="tab03" role="tabpanel">
+    <section class="sc-section">
+      <header class="d-flex justify-content-between align-items-center">
+        <div class="sc-section-head-left">
+          <span class="sc-badge">03</span>
+          <p class="mb-0">Mesures à prendre</p>
+        </div>
+        <button type="button" class="btn btn-sm btn-success" id="add-measure">
+          <i class="bi bi-plus-lg"></i> Ajouter une mesure
+        </button>
+      </header>
+      <div class="sc-section-body p-0">
+        {{ measure_formset.management_form }}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0" id="measures-table">
+            <thead>
+              <tr>
+                <th scope="col" style="width:6%">N°</th>
+                <th scope="col">Mesure</th>
+                <th scope="col" style="width:18%">Responsable</th>
+                <th scope="col" style="width:14%">Échéance</th>
+                <th scope="col" style="width:14%">Statut</th>
+                <th scope="col" style="width:6%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for subform in measure_formset %}
+                <tr class="measure-row">
+                  {{ subform.id }}
+                  <td class="sc-measure-order">
+                    {{ subform.instance.order|default:forloop.counter }}
+                  </td>
+                  <td>{{ subform.description }}{{ subform.description.errors }}</td>
+                  <td>{{ subform.responsible }}</td>
+                  <td>{{ subform.deadline }}</td>
+                  <td>{{ subform.status }}</td>
+                  <td class="text-end">
+                    {% comment %}
+                      La case à cocher pilote la suppression côté formset ;
+                      elle est masquée et remplacée par le bouton corbeille.
+                      La ligne est barrée tant que l'enregistrement n'a pas
+                      eu lieu, pour que le geste reste réversible. Une fois
+                      le courriel parti, le rapport fait foi : plus de
+                      corbeille.
+                    {% endcomment %}
+                    {% if not read_only %}
+                      <label class="btn btn-sm btn-outline-danger mb-0 sc-measure-delete"
+                             title="Supprimer cette mesure">
+                        <span class="visually-hidden">{{ subform.DELETE }}</span>
+                        <i class="bi bi-trash"></i>
+                      </label>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="form-text px-3 pt-2 mb-2">
+          Au moins une mesure est requise lorsque le chantier n'est pas
+          conforme.
+        </p>
+      </div>
+    </section>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <section class="sc-section h-100">
+          <header>
+            <div class="sc-section-head-left">
+              <span class="sc-badge"><i class="bi bi-chat-left-text"></i></span>
+              <p class="mb-0">Observations générales</p>
+            </div>
+          </header>
+          <div class="sc-section-body">
+            {{ form.observations_generales }}
+            {{ form.observations_generales.errors }}
+          </div>
+        </section>
+      </div>
+      <div class="col-md-6">
+        <section class="sc-section h-100">
+          <header>
+            <div class="sc-section-head-left">
+              <span class="sc-badge"><i class="bi bi-list-check"></i></span>
+              <p class="mb-0">Procédure de contrôle</p>
+            </div>
+          </header>
+          <div class="sc-section-body">
+            {{ form.procedure_controle }}
+            {{ form.procedure_controle.errors }}
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  {# ---------------------------------------------------------- 04 #}
+  <div class="tab-pane fade{% if active_tab == 'tab04' %} show active{% endif %}"
+       id="tab04" role="tabpanel">
+    {{ answer_formset.management_form }}
+    {% for block in answers_by_theme %}
+      <section class="sc-section" data-theme-block="{{ block.theme.id }}">
+        <header>
+          <div class="sc-section-head-left">
+            <span class="sc-badge">04</span>
+            <p class="mb-0">{{ block.theme.label }}</p>
+          </div>
+        </header>
+        <div class="sc-section-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Point contrôlé</th>
+                  <th scope="col" style="width:32%">Conformité</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% comment %}
+                  Raccourci de saisie : la plupart des thèmes sont conformes
+                  de bout en bout, et cocher vingt lignes une à une n'apporte
+                  rien. Chaque ligne reste modifiable après coup ; ce bouton
+                  n'est pas envoyé au serveur, il ne fait que cocher les
+                  lignes.
+                {% endcomment %}
+                {% if not read_only %}
+                  <tr class="sc-bulk-row" data-bulk-theme="{{ block.theme.pk }}">
+                    <td class="text-muted">
+                      <i class="bi bi-lightning-charge"></i>
+                      Appliquer à tout le thème
+                    </td>
+                    <td>
+                      <div class="d-flex gap-3">
+                        {% for value, label in conformity_choices %}
+                          <div class="form-check">
+                            <input class="form-check-input sc-bulk-input"
+                                   type="radio"
+                                   name="bulk-{{ block.theme.pk }}"
+                                   id="bulk-{{ block.theme.pk }}-{{ value }}"
+                                   value="{{ value }}">
+                            <label class="form-check-label"
+                                   for="bulk-{{ block.theme.pk }}-{{ value }}">
+                              {{ label }}
+                            </label>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endif %}
+                {% for subform in block.forms %}
+                  <tr>
+                    {{ subform.id }}
+                    <td>{{ subform.instance.control_point.label }}</td>
+                    <td>
+                      <div class="d-flex gap-3">
+                        {% for radio in subform.conformity %}
+                          <div class="form-check">
+                            {{ radio.tag }}
+                            <label class="form-check-label"
+                                   for="{{ radio.id_for_label }}">
+                              {{ radio.choice_label }}
+                            </label>
+                          </div>
+                        {% endfor %}
+                      </div>
+                      {{ subform.conformity.errors }}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if block.assessment_form %}
+            {% include "sene_chantiers/_field.html" with field=block.assessment_form.detail_observations wrapper="sc-section-body" %}
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+
 {% endblock %}
 
 {% block scripts %}
