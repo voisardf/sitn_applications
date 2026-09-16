@@ -20,3 +20,4 @@ python-dotenv
 whitenoise
 openpyxl
 requests
+pystac

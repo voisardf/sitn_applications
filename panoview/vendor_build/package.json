@@ -1,0 +1,12 @@
+{
+  "name": "panoview-vendor-build",
+  "private": true,
+  "description": "Not a Django app - builds panoview/static/panoview/vendor/panoramax-web-viewer.photoviewer.bundle.js. See README.md.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@panoramax/web-viewer": "5.1.2",
+    "esbuild": "^0.28.1"
+  }
+}
