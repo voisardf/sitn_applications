@@ -7,10 +7,8 @@ DERNIER_ZIP_STATUT_CHOICES = list(Zipfile.FileStatut.choices) + [("NONE", "Aucun
 
 
 class DossierPPEFilter(django_filters.FilterSet):
-    """ Colonnes filtrables de la liste des dossiers PPE (ppe:index).
-    `dernier_zip_statut` s'appuie sur l'annotation posée par IndexView.get_queryset
-    (statut du dernier zip soumis, trié par date de chargement), pas sur un simple
-    "a un zip avec ce statut" qui inclurait les zips plus anciens. """
+    """ Filtres pour la liste des dossiers PPE (ppe:index).
+    """
 
     cadastre = django_filters.CharFilter(
         lookup_expr="icontains",

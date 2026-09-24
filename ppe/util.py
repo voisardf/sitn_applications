@@ -39,7 +39,7 @@ def login_required(func):
     return wrapper
 
 def get_localisation(request, localisation):
-    """ Retourne le dict de localisation calculé, ou None en cas d'échec
+    """ Retourne le dict de localisation, ou None en cas d'échec
     (coordonnées manquantes, hors canton, ou erreur du service satac).
     Les appelants doivent systématiquement vérifier ce None avant d'utiliser
     le résultat comme un dict. """
