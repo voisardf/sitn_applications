@@ -42,10 +42,6 @@ class IndexView(FilterView):
 
     PAGE_SIZES = [10, 15, 25, 50, 100]
     DEFAULT_PAGE_SIZE = 15
-    if request.user.has_perm("ppe.view_dossierppe"):
-        latest_dossiers_list = DossierPPE.objects.order_by("-date_creation")[:15]
-    else:
-        latest_dossiers_list = None
 
     SORTABLE_COLUMNS = [
         ("id", "ID"),
@@ -94,6 +90,11 @@ class IndexView(FilterView):
         context = super().get_context_data(**kwargs)
         context["page_sizes"] = self.PAGE_SIZES
         context["current_page_size"] = self.get_paginate_by(None)
+
+        if self.request.user.has_perm("ppe.view_dossierppe"):
+            context["latest_dossiers_list"] = DossierPPE.objects.order_by("-date_creation")[:15]
+        else:
+            context["latest_dossiers_list"] = None
 
         current_ordering = self.request.GET.get("ordering", "")
         columns = []
