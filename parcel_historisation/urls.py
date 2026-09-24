@@ -13,6 +13,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('get_docs_list', views.get_docs_list, name='get_docs_list'),
     path('get_download_path', views.get_download_path, name='get_download_path'),
+    path('search_plans_by_term', views.search_plans_by_term),
     path('download/<path:name>', views.file_download),
     path('submit_saisie', views.submit_saisie),
     path('submit_balance', views.submit_balance),

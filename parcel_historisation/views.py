@@ -70,7 +70,7 @@ def get_docs_list(request):
     # TODO: parameter validation (try int(numcad) except BadRequest)
     numcad = request.GET["numcad"]
 
-    results = Plan.objects.filter(state__id=1).filter(cadastre=int(numcad)).order_by("-date_plan", "link").all()
+    results = Plan.objects.filter(state__id=1).filter(cadastre=int(numcad)).order_by("-plan_number", "index", "-scale").all()
 
     load = []
     for result in results:
@@ -89,6 +89,33 @@ def get_docs_list(request):
         download = first.name
 
     return JsonResponse({"list": load, "download": download}, safe=False)
+
+
+@permission_required("parcel_historisation.view_designation", raise_exception=True)
+def search_plans_by_term(request):
+    """
+    Gets the list of documents which have to be analysed, thus having a state
+    equal to one. The list is generated regarding a specified cadastre
+    """
+
+    # TODO: parameter validation (try int(numcad) except BadRequest)
+    data = json.loads(request.body)
+    numcad = data["numcad"]
+    searchterm = data["searchterm"]
+
+    results = Plan.objects.filter(cadastre=int(numcad)).filter(link__startswith=searchterm).order_by("-plan_number", "index", "-scale").all()
+
+    load = []
+    for i, result in enumerate(results):
+
+        if i >= 10:
+            break
+
+        load.append(
+            result.link,
+        )
+
+    return JsonResponse(load, safe=False)
 
 
 @permission_required("parcel_historisation.view_designation", raise_exception=True)
@@ -270,8 +297,8 @@ class BalanceViewSet(viewsets.ViewSet):
     API endpoint to handle balances.
     """
 
-    serializer_class = BalanceSerializer
     queryset = Balance.objects.all()
+    serializer_class = BalanceSerializer
 
     def retrieve(self, request, pk):
         instances = Balance.objects.filter(division=pk)
@@ -440,8 +467,18 @@ class OperationViewSet(viewsets.ModelViewSet):
     API endpoint that exposes operation in order to continue the edition mode
     """
 
-    queryset = Operation.objects.all()
     serializer_class = OperationSerializer
+
+    def get_queryset(self):
+        queryset = Operation.objects
+
+        cadastre_id = self.request.query_params.get("cadastre_id")
+        plan_link = self.request.query_params.get("plan_link")
+
+        if plan_link and cadastre_id:
+            queryset = queryset.filter(plan__link=plan_link, plan__cadastre=cadastre_id)
+
+        return queryset
 
 
 @permission_required("parcel_historisation.view_designation", raise_exception=True)

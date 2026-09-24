@@ -290,21 +290,57 @@ document.getElementById("create-ddp").onclick = () => {
 }
 
 document.getElementById("load-operation").onclick = () => {
-  const operation_id = document.getElementById("operation-id-continue").value;
-  if (!operation_id) {
-    alert("Veuillez entrer le numéro de l'opération afin de poursuivre le processus.");
+  const plan_link = document.getElementById("plan-link-continue").value;
+  if (!plan_link) {
+    alert("Veuillez entrer le numéro de fichier afin de poursuivre le processus.");
     return;
   }
 
-  ph.loadOperation(operation_id);
+  ph.loadOperation(plan_link);
 }
 
 
-document.getElementById("operation-id-continue").addEventListener("keypress", e => {
+document.getElementById("plan-link-continue").addEventListener("keypress", e => {
   if (e.key === 'Enter') {
     document.getElementById("load-operation").click();
+    document.getElementById("plan-link-continue-results").innerHTML = "";
   }
 });
+
+document.getElementById("plan-link-continue").addEventListener("change", e => {
+  document.getElementById("load-operation").click();
+  document.getElementById("plan-link-continue-results").innerHTML = "";
+});
+
+
+document.getElementById("plan-link-continue").addEventListener("keyup", e => {
+  if (e.key) {
+
+    let params = {
+      searchterm: document.getElementById("plan-link-continue").value,
+      numcad: ph.activecadastre,
+    }
+
+    return fetch('search_plans_by_term', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': ph.csrftoken
+      },
+      body: JSON.stringify(params)
+    }).then((response) => response.json())
+      .then((data) => {
+
+        options_html = "";
+        data.forEach(x => {options_html += `<option>${x}</option>`});
+        document.getElementById("plan-link-continue-results").innerHTML = options_html;
+
+      }).catch((err) => {
+        alert('Une erreur s\'est produite. Veuillez contacter l\'administrateur\n\n \
+        Détail de l\'erreur:\n' + String(err));
+      });
+  }
+});
+
 
 
 // Fonction pour vérifier et mettre à jour la visibilité de la div container
@@ -388,7 +424,7 @@ async function postBalanceRelations(balance, ddp) {
   // let no_infolica = document.getElementById("no_infolica").value;
 
   let params = {
-    division_id: ph.activeoperation_id,
+    division_id: ph.active_plan_link,
     no_infolica: no_infolica,
     cadastre_id: ph.activecadastre,
     balance: balance,
@@ -403,7 +439,7 @@ async function postBalanceRelations(balance, ddp) {
     body: JSON.stringify(params)
   }).then((response) => response.json())
     .then((data) => {
-      alert("La balance a bien été enregistrée");
+      ph.showSuccessMessage(title="Succès !", body="✅ La balance a bien été enregistrée");
       // hide balance and DDP sections
       document.getElementById("tableau-balance").innerHTML = '';
       document.getElementById("ddp-section").innerHTML = '';
@@ -421,7 +457,7 @@ async function postBalanceRelations(balance, ddp) {
 ph = {
   activecadastre: null,
   cadastres: {},
-  activeoperation_id: null,
+  active_plan_link: null,
   operationDetail: new bootstrap.Modal(document.getElementById('operationDetail')),
 
 };
@@ -553,6 +589,13 @@ document.getElementById("submit-form").onclick = () => {
 
   document.getElementById("overlay").style.display = "block";
 
+  // check that at least one option is selected
+  if ((document.getElementById("div_check").checked || document.getElementById("cad_check").checked || document.getElementById("serv_check").checked || document.getElementById("art35_check").checked || document.getElementById("other_check").checked || document.getElementById("delayed_check").checked) === false) {
+    ph.showErrorMessage(title="Erreur !", body="❌ La tâche n'a été exécutée.<br>Sélectionner un type d'affaire.");
+    document.getElementById("overlay").style.display = "none";
+    return;
+  }
+
   const delayed_check = document.getElementById("delayed_check").checked
   ph.setCadastreListeBalance();
 
@@ -565,7 +608,8 @@ document.getElementById("submit-form").onclick = () => {
     other_check: document.getElementById("other_check").checked,
     delayed_check: delayed_check,
     complement: document.getElementById("complement").value,
-    operation_id: ph.activeoperation_id,
+    plan_link: ph.active_plan_link,
+    operation_id: ph.active_operation_id,
   };
 
 
@@ -580,7 +624,7 @@ document.getElementById("submit-form").onclick = () => {
 
   // submitting with the token because Django needs it when doing a POST request
   fetch('submit_saisie', {
-    method: 'POST',
+    method: ph.active_operation_id? 'PUT': 'POST',
     headers: {
       'Accept': 'application/json, text/plain,  */*',
       'Content-Type': 'application/json'
@@ -591,7 +635,7 @@ document.getElementById("submit-form").onclick = () => {
   })
     .then(res => res.json())
     .then(res => {
-      ph.activeoperation_id = res['operation_id'];
+      ph.active_plan_link = res['operation_id'];
       ph.resetSubmitForm(res['has_div']);
     });
 };
@@ -603,10 +647,10 @@ ph.resetSubmitForm = async (div) => {
   if (div === true) {
     document.getElementById("step2").style.display = "block";
     document.getElementById("overlay").style.display = "none";
-    document.getElementById("operation_id_title").innerText = ph.activeoperation_id;
+    document.getElementById("operation_id_title").innerText = ph.active_plan_link;
     document.getElementById("operation_id_title_section").hidden = false;
 
-    if (document.getElementById("input-continuation-checkbox").checked === true) {
+    if (ph.active_operation_id) {
       ph.loadBalance();
     }
   } else {
@@ -845,7 +889,7 @@ ph.showBalance = async (id) => {
   bootstrap.Tab.getInstance(triggerEl).show();
   // load operation
   await ph.loadOperation(id);
-  ph.activeoperation_id = id;
+  ph.active_plan_link = id;
   // simulate click on OK button to open balance
   document.getElementById("submit-form").click();
   ph.loadBalance();
@@ -884,7 +928,7 @@ ph.showDetail = (id) => {
       </table>
     `;
 
-      document.getElementById("operationDetailTitle").innerHTML = `Opération ${data.id}`;
+      document.getElementById("operationDetailTitle").innerHTML = `Fichier ${data.id}`;
       document.getElementById("operationDetailBody").innerHTML = tmpl;
       // open modal
       ph.operationDetail.show();
@@ -949,12 +993,13 @@ ph.setCadastreListeBalance = () => {
 };
 
 ph.initialize_form = () => {
-  const text = "Êtes-vous sûr de vouloir quitter la saisie?\nTous les éléments saisis dans ce formulaire seront perdus";
+  const text = "Êtes-vous sûr de vouloir quitter la saisie?\nTous les éléments saisis dans ce formulaire seront perdus.";
   if (confirm(text) == true) {
     document.getElementById("step1").style.display = "none";
     document.getElementById("cadastre_selector").style.display = "block";
     ph.activecadastre = null;
-    ph.activeoperation_id = null;
+    ph.active_plan_link = null;
+    ph.active_operation_id = null;
     document.getElementById("nav-listing-tab").classList.add("disabled");
     document.getElementById("nav-control-tab").classList.add("disabled");
     // Reset form
@@ -971,7 +1016,8 @@ ph.initialize_form = () => {
     document.getElementById("step2").style.display = "none";
     document.getElementById("input-continuation-checkbox").checked = false;
     document.getElementById("operation-continue-section").hidden = true;
-    document.getElementById("operation-id-continue").value = "";
+    document.getElementById("plan-link-continue").value = "";
+    document.getElementById("no_infolica").value = "";
     // Reset cadastre text fields
     const cadastre_text_tags = document.querySelectorAll(".cadastre_text");
     for (let i = 0; i < cadastre_text_tags.length; i++) {
@@ -992,7 +1038,8 @@ ph.initialize_form = () => {
 
 ph.reset_step1 = () => {
   document.getElementById("step1").style.display = "block";
-  ph.activeoperation_id = null;
+  ph.active_plan_link = null;
+  ph.active_operation_id = null;
   // Reset form
   document.getElementById("delayed_check").checked = false;
   document.getElementById("div_check").checked = false;
@@ -1007,17 +1054,22 @@ ph.reset_step1 = () => {
   document.getElementById("step2").style.display = "none";
   document.getElementById("input-continuation-checkbox").checked = false;
   document.getElementById("operation-continue-section").hidden = true;
-  document.getElementById("operation-id-continue").value = "";
+  document.getElementById("plan-link-continue").value = "";
+  document.getElementById("input-continuation-checkbox").checked = false;
+  document.getElementById("no_infolica").value = "";
+  document.getElementById("tableau-balance").innerHTML = "";
   return;
 }
 
 
 ph.loadBalance = () => {
-  fetch(`api/balance/${ph.activeoperation_id}`)
+  fetch(`api/balance/${ph.active_operation_id}`)
     .then((response) => response.json())
     .then((data) => {
-      let tb_html = ph.buildHTMLTable(data.balance);
-      document.getElementById("tableau-balance").innerHTML = tb_html;
+      if (data.balance) {
+        let tb_html = ph.buildHTMLTable(data.balance);
+        document.getElementById("tableau-balance").innerHTML = tb_html;
+      }
 
       let bf;
       for (const elem of data.ddp) {
@@ -1080,9 +1132,15 @@ ph.check_relations = () => {
     }
   }
 
-  result = confirm(`Erreurs dans la balance:\n\n${errors.join('\n')}\n\nContinuer l'enregistrement de la balance ?`);
+  if (errors.length>0) {
+    result = confirm(`Erreurs dans la balance:\n\n${errors.join('\n')}\n\nContinuer l'enregistrement de la balance ?`);
+    return result;
+  } else  {
+    result = confirm(`La balance a été vérifiée.\n\nPoursuivre l'enregistrement [OK] ou faut-il saisir d'autres balances [ANNULER] ?`)
+  }
 
   return result;
+
 }
 
 ph.run_control = () => {
@@ -1182,16 +1240,26 @@ ph.create_control_tables = (data) => {
   document.getElementById("overlay").style.display = "none";
 }
 
-ph.loadOperation = async (operation_id) => {
-  await fetch(`api/operations/${operation_id}`)
+ph.loadOperation = async (plan_link) => {
+  ph.reset_step1();
+
+  await fetch(`api/operations/?plan_link=${plan_link}&cadastre_id=${ph.activecadastre}`)
     .then((response) => response.json())
     .then((data) => {
 
-      if (String(data.cadastre_id) !== ph.activecadastre) {
-        let operation_cadastre = ph.cadastres[data.cadastre_id];
-        alert(`Le cadastre de l'opération (${operation_cadastre}) est différent de celui sélectionné.\n\nL'opération n'est pas chargée. Réessayez avec une autre opération ou sélectionnez le bon cadastre.`);
+      if (data.count == 0) {
+        ph.showErrorMessage();
+        alert(`Aucune saisie n'a été enregistrée pour le plan ${plan_link} sur le cadastre ${ph.cadastres[ph.activecadastre]}.`);
         return;
       }
+      if (data.count > 1) {
+        ph.showErrorMessage();
+        alert(`Il existe plusieurs saisies pour le plan ${plan_link} sur le cadastre ${ph.cadastres[ph.activecadastre]}.\nContacter l'administrateur.`);
+        return;
+      }
+
+      data = data.results[0];
+      ph.active_operation_id = data.id;
 
       // update plan list
       plan_list = document.getElementById("plan_list")
@@ -1224,7 +1292,9 @@ ph.loadOperation = async (operation_id) => {
       document.getElementById("complement").value = data.complement;
 
 
-      ph.activeoperation_id = document.getElementById("operation-id-continue").value;
+      ph.active_plan_link = document.getElementById("plan-link-continue").value;
+
+      ph.showSuccessMessage(title="Succès !", body="✅ La saisie a bien été récupérée.");
 
     }).catch((err) => {
       alert('Une erreur s\'est produite. Veuillez contacter l\'administrateur\n\n \
@@ -1289,4 +1359,28 @@ ph.parcelState = (type) => {
       ph.run_control();
     });
   }
+}
+
+ph.showSuccessMessage = (title="Succès !", body="✅ La tâche a été exécutée avec succès.", delay=5000) => {
+  const toastElement = document.getElementById('successToast');
+  document.getElementById('successToastTitle').innerHTML = "<strong>" + title + "</strong>";
+  document.getElementById('successToastBody').innerHTML = body;
+
+  const toast = new bootstrap.Toast(toastElement, {
+    delay: delay
+  });
+
+  toast.show();
+}
+
+ph.showErrorMessage = (title="Erreur !", body="❌ La tâche n'a pas été exécutée.", delay=5000) => {
+  const toastElement = document.getElementById('errorToast');
+  document.getElementById('errorToastTitle').innerHTML = "<strong>" + title + "</strong>";
+  document.getElementById('errorToastBody').innerHTML = body;
+
+  const toast = new bootstrap.Toast(toastElement, {
+    delay: delay
+  });
+
+  toast.show();
 }
