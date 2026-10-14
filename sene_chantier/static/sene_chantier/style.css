@@ -1,0 +1,86 @@
+body {
+  width: 100%;
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: white;
+}
+
+body:after {
+    content: "Prototype";
+    position: fixed;
+    width: 300px;
+    height: 40px;
+    background: #d62f2f;
+    top: 50px;
+    right: -80px;
+    text-align: center;
+    font-size: 1.2em;
+    font-family: "Gill Sans", sans-serif;
+    text-transform: uppercase;
+    font-weight: bold;
+    color: #fff;
+    line-height: 41px;
+    transform:rotate(45deg);
+  }
+
+  header {
+  width: 100%;
+  height: 85px;
+  font-size: clamp(20px, 5vw, 48px);
+  font-weight: bold;
+  color: white;
+  text-align: left;
+  background-color: #036250;
+  border-bottom: 1px solid grey;
+  z-index: 1020;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+}
+
+footer {
+  font-size: 0.875rem;
+  text-align: right;
+  padding: 0.5rem 1rem;
+}
+
+header > [class*="col-"] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.entete {
+  justify-content: center;
+}
+
+.drapeau {
+  font-size: 9px;
+  text-align: center;
+  justify-content: flex-end;
+}
+
+.drapeau img {
+  max-height: 56px;
+  max-width: 100%;
+  width: auto;
+}
+
+.home {
+  color: white !important;
+  text-decoration: none !important;
+  font-size: clamp(15px, 2.1vw, 30px);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  background: var(--card);
+}

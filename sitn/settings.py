@@ -53,8 +53,9 @@ INTERNET_ONLY_APPS = [
     'ecap',
     'forest_forpriv',
     'health',
-    'stationnement',
     'ppe',
+    'sene_chantier',
+    'stationnement',
 ]
 
 INSTALLED_APPS = [
@@ -146,7 +147,7 @@ DATABASES = {
         'PORT': os.environ["PGPORT"],
         'PASSWORD': os.environ["PGPASSWORD"],
         'OPTIONS': {
-            'options': '-c search_path=' + os.environ["PGSCHEMA"] + ',ppe,public'
+            'options': '-c search_path=' + os.environ["PGSCHEMA"] + ',ppe,sene_chantier,public'
         },
     },
     'terris': {
