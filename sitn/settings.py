@@ -108,7 +108,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 SERIALIZATION_MODULES = {
-    "geojson": "django.contrib.gis.serializers.geojson", 
+    "geojson": "django.contrib.gis.serializers.geojson",
  }
 
 ROOT_URLCONF = 'sitn.urls'
@@ -246,14 +246,14 @@ if DEVELOPMENT_MODE:
     if ACTIVATE_MAILING_IN_DEV_MODE:
         DEFAULT_FROM_EMAIL='no-reply-ppe@ne.ch'
         EMAIL_HOST='smtp.ne.ch'
-    else: 
+    else:
         EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
         EMAIL_FILE_PATH = BASE_DIR / "emails_sent"
 else:
     EMAIL_HOST = os.environ["EMAIL_HOST"]
 
 
-NEARCH2_CONSULTATION = os.environ.get('NEARCH2_CONSULTATION')
+ARCHIVES_PATH = os.environ.get('PYTHON_ARCHIVES_PATH')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
@@ -308,7 +308,7 @@ HEALTH = {
 }
 
 # Be aware that by changing the PAGE_SIZE parameter, you will have to
-# adjust the client page pagination parameter (limit) as well, like as in 
+# adjust the client page pagination parameter (limit) as well, like as in
 # parcel_historisation\static\parcel_historisation\parcel_historisation.js
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',

@@ -127,7 +127,7 @@ def file_download(request, name):
     The whole path to the file has to be passed in the URL
     """
 
-    base_path = settings.NEARCH2_CONSULTATION
+    base_path = settings.ARCHIVES_PATH
 
     path = pathlib.Path(base_path + "/Plans_de_mutations/" + name)
 

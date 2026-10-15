@@ -821,7 +821,11 @@ ph.getBalance = (id) => {
   fetch(ph.infolica_api_url + 'balance_from_affaire_id?' + new URLSearchParams({
     division_id: id,
     cadastre_id: ph.activecadastre
-  })
+  }),
+  {
+    method: 'GET',
+    credentials: 'include'
+  }
   )
     .then((response) => response.json())
     .then((data) => {

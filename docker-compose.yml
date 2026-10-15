@@ -13,3 +13,4 @@ services:
     volumes:
       - ${UPLOAD_DATA_PATH}:/upload:rw
       - ${DATA_PATH}:/data:ro
+      - ${COMPOSE_NEARCH_PATH}:/${PYTHON_ARCHIVES_PATH}:ro
